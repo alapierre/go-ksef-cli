@@ -7,13 +7,13 @@ import (
 	"github.com/alapierre/go-ksef-client/ksef/model"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
-	"github.com/zalando/go-keyring"
 	"os"
 )
 
 type context struct {
-	pathToKey string
-	env       string
+	pathToKey      string
+	env            string
+	sessionService api.SessionService
 }
 
 var c context
@@ -26,6 +26,9 @@ func main() {
 	token := loginCmd.String("t", "token", &argparse.Options{Required: true, Help: "KSeF authorisation token"})
 	identifier := loginCmd.String("i", "identifier", &argparse.Options{Required: true, Help: "Organization identifier (NIP)"})
 
+	logoutCmd := parser.NewCommand("logout", "logout from KSeF by close interactive session")
+	sessionToken := logoutCmd.String("t", "token", &argparse.Options{Required: true, Help: "KSeF session token"})
+
 	config()
 
 	err := parser.Parse(os.Args)
@@ -34,30 +37,41 @@ func main() {
 		os.Exit(1)
 	}
 
+	client := api.New(stringToEnvName(c.env))
+	c.sessionService = api.NewSessionService(client)
+
 	if loginCmd.Happened() {
 		loginCommand(token, identifier, &c.pathToKey)
+	} else if logoutCmd.Happened() {
+		logoutCommand(sessionToken)
 	}
 
 }
 
-func loginCommand(token *string, identifier, pathToKey *string) {
+func loginCommand(token, identifier, pathToKey *string) {
 
 	fmt.Println("Trying to login into KSeF")
 
-	client := api.New(stringToEnvName(c.env))
-	session := api.NewSessionService(client)
+	sessionToken, err := c.sessionService.LoginByToken(*identifier, model.ONIP, *token, *pathToKey)
+	handleError(err)
+	fmt.Printf("session token: %s\n", sessionToken.SessionToken.Token)
+}
 
-	sessionToken, err := session.LoginByToken(*identifier, model.ONIP, *token, *pathToKey)
+func logoutCommand(sessionToken *string) {
+	terminate, err := c.sessionService.Terminate(*sessionToken)
+	handleError(err)
+	fmt.Printf("responce: %#v\n", *terminate)
+}
 
+func handleError(err error) {
 	if err != nil {
 		re, ok := err.(*api.RequestError)
 		if ok {
 			log.Errorf("request error %d responce body %s", re.StatusCode, re.Body)
+			os.Exit(1)
 		}
 		panic(err)
 	}
-
-	fmt.Printf("session token: %s\n", sessionToken.SessionToken.Token)
 }
 
 func config() {
@@ -74,7 +88,7 @@ func config() {
 
 	err := viper.ReadInConfig()
 	if err != nil {
-		panic(fmt.Errorf("fatal error config file: %w", err))
+		fmt.Printf("Can't load %s\n", err)
 	}
 
 	keysPath := viper.GetString("mfKeys")
@@ -91,24 +105,4 @@ func stringToEnvName(env string) api.Environment {
 	} else {
 		return api.Test
 	}
-}
-
-func storeKeyInKeyring() {
-	service := "ksef-cli"
-	user := "encryption-key"
-	password := "encryption-key"
-
-	// set password
-	err := keyring.Set(service, user, password)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// get password
-	secret, err := keyring.Get(service, user)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	log.Println(secret)
 }
