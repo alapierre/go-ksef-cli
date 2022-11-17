@@ -4,16 +4,17 @@ import (
 	"fmt"
 	"github.com/akamensky/argparse"
 	"github.com/alapierre/go-ksef-client/ksef/api"
-	"github.com/alapierre/go-ksef-client/ksef/model"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"os"
 )
 
 type context struct {
-	pathToKey      string
-	env            string
-	sessionService api.SessionService
+	pathToKey         string
+	env               string
+	sessionService    api.SessionService
+	loadEncryptionKey func() []byte
+	initEncryption    func() error
 }
 
 var c context
@@ -23,11 +24,17 @@ func main() {
 	parser := argparse.NewParser("ksef-cli", "KSeF Command line interface")
 
 	loginCmd := parser.NewCommand("login", "login into KSeF using provided authorisation token")
-	token := loginCmd.String("t", "token", &argparse.Options{Required: true, Help: "KSeF authorisation token"})
+	token := loginCmd.String("t", "token", &argparse.Options{Required: false, Help: "KSeF authorisation token, if not provided it will be loaded from keystore (it should be stored first)"})
 	identifier := loginCmd.String("i", "identifier", &argparse.Options{Required: true, Help: "Organization identifier (NIP)"})
 
 	logoutCmd := parser.NewCommand("logout", "logout from KSeF by close interactive session")
-	sessionToken := logoutCmd.String("t", "token", &argparse.Options{Required: true, Help: "KSeF session token"})
+	sessionToken := logoutCmd.String("t", "token", &argparse.Options{Required: false, Help: "KSeF session token"})
+
+	initCmd := parser.NewCommand("init", "initialize encryption key and save it in keystore selected in configuration")
+
+	storeAuthTokenCmd := parser.NewCommand("store", "encrypt and store authorisation token in keystore selected in configuration")
+	tokenToStore := storeAuthTokenCmd.String("t", "token", &argparse.Options{Required: true, Help: "KSeF authorisation token"})
+	identifierToStore := storeAuthTokenCmd.String("i", "identifier", &argparse.Options{Required: true, Help: "Organization identifier (NIP)"})
 
 	config()
 
@@ -44,23 +51,13 @@ func main() {
 		loginCommand(token, identifier, &c.pathToKey)
 	} else if logoutCmd.Happened() {
 		logoutCommand(sessionToken)
+	} else if initCmd.Happened() {
+		initCommand()
+	} else if storeAuthTokenCmd.Happened() {
+		storeAuthToken(*tokenToStore, *identifierToStore, c.env)
+		fmt.Printf("Token for identifier %s for envitnoment: %s stored successfully\n", *identifier, c.env)
 	}
 
-}
-
-func loginCommand(token, identifier, pathToKey *string) {
-
-	fmt.Println("Trying to login into KSeF")
-
-	sessionToken, err := c.sessionService.LoginByToken(*identifier, model.ONIP, *token, *pathToKey)
-	handleError(err)
-	fmt.Printf("session token: %s\n", sessionToken.SessionToken.Token)
-}
-
-func logoutCommand(sessionToken *string) {
-	terminate, err := c.sessionService.Terminate(*sessionToken)
-	handleError(err)
-	fmt.Printf("responce: %#v\n", *terminate)
 }
 
 func handleError(err error) {
@@ -85,15 +82,18 @@ func config() {
 
 	viper.SetDefault("env", "test")
 	viper.SetDefault("mfKeys", "keys")
+	viper.SetDefault("keystore", "desktop")
+	viper.SetDefault("printSessionToken", "true")
 
 	err := viper.ReadInConfig()
 	if err != nil {
-		fmt.Printf("Can't load %s\n", err)
+		fmt.Printf("WARNING: Can't load %s\n", err)
 	}
 
 	keysPath := viper.GetString("mfKeys")
 	ksefEnv := viper.GetString("env")
 	c.pathToKey = fmt.Sprintf("%s/%s/publicKey.pem", keysPath, ksefEnv)
+	c.env = ksefEnv
 
 }
 
@@ -105,4 +105,9 @@ func stringToEnvName(env string) api.Environment {
 	} else {
 		return api.Test
 	}
+}
+
+func exitWithError(message string) {
+	fmt.Println(message)
+	os.Exit(1)
 }

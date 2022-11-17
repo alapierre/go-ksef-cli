@@ -41,7 +41,7 @@ func loadEncryptionKey() []byte {
 
 func checkIsEncKeyInitialized() bool {
 	_, err := keyring.Get(service, user)
-	return err != nil
+	return err == nil
 }
 
 func crypt(message string) (string, error) {
