@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"github.com/akamensky/argparse"
 	"github.com/alapierre/go-ksef-client/ksef/api"
@@ -62,7 +63,8 @@ func main() {
 
 func handleError(err error) {
 	if err != nil {
-		re, ok := err.(*api.RequestError)
+		var re *api.RequestError
+		ok := errors.As(err, &re)
 		if ok {
 			log.Errorf("request error %d responce body %s", re.StatusCode, re.Body)
 			os.Exit(1)
