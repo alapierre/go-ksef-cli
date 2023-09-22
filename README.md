@@ -1,13 +1,17 @@
 # go-ksef-cli
-simple KSeF Command Line Interface
+Simple KSeF Command Line Interface
 
 # Instalacja
 
-Pobrać i rozlakować archiwum dla wybranego systemu operacyjnego (obecnie Linux x64 lub Windows x64) ze strony https://github.com/alapierre/go-ksef-cli/releases
+- pobrać i rozpakować archiwum dla wybranego systemu operacyjnego (obecnie Linux x64 lub Windows x64) ze strony https://github.com/alapierre/go-ksef-cli/releases
+- dostosować opcje konfiguracyjne, w szczególności ścieżka do kluczy, środowisko (test, demo, prod) 
 
 # Konfiguracja
 
-Plik `config.env` zawiera dostępne opcje konfiguracyjne. 
+Plik `config.env` zawiera dostępne opcje konfiguracyjne. Plik może zostać zapisany w jednej s z dwóch lokalizacji:
+
+1. w katalogu domowym użytkownika  `$HOME/.go-ksef-cli/config.env` - ta lokalizacja ma priorytet
+2. w katalogu, z którego uruchamiana jest aplikacja `config.env` - w drugiej kolejności aplikacja szuka tutaj
 
 # Przechowywanie tokena autoryzacyjnego
 
