@@ -44,6 +44,26 @@ Jeśli wcześniej zapisano token autoryzacyjny
 ksef-cli login -i __nip___
 ```
 
+# Wysłanie faktury lub faktur
+
+```shell
+ksef-cli send /home/adrian/invoices
+```
+
+Wyśle wszystkie pliki XML z podanego katalogu
+
+```shell
+ksef-cli send /home/adrian/invoices/FA2.xml
+```
+
+Wyśle wskazany plik
+
+# Sprawdzenie statusu aktualnej sesji
+
+```shell
+ksef-cli status
+```
+
 # Zakończenie sesji
 
 ```shell

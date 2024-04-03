@@ -14,6 +14,7 @@ type context struct {
 	pathToKey         string
 	env               string
 	sessionService    api.SessionService
+	invoiceService    api.InvoiceService
 	loadEncryptionKey func() []byte
 	initEncryption    func() error
 }
@@ -37,6 +38,13 @@ func main() {
 	tokenToStore := storeAuthTokenCmd.String("t", "token", &argparse.Options{Required: true, Help: "KSeF authorisation token"})
 	identifierToStore := storeAuthTokenCmd.String("i", "identifier", &argparse.Options{Required: true, Help: "Organization identifier (NIP)"})
 
+	sendInvoiceCmd := parser.NewCommand("send", "send invoice into KSeF")
+	sendToken := sendInvoiceCmd.String("t", "token", &argparse.Options{Required: false, Help: "KSeF session token, if not provided it will be loaded (you should login first"})
+	fileToSend := sendInvoiceCmd.StringPositional(&argparse.Options{Required: true, Help: "XML invoice file or directory"})
+
+	statusCmd := parser.NewCommand("status", "print KSeF session status")
+	statusToken := statusCmd.String("t", "token", &argparse.Options{Required: false, Help: "KSeF session token, if not provided it will be loaded (you should login first"})
+
 	config()
 
 	err := parser.Parse(os.Args)
@@ -47,6 +55,7 @@ func main() {
 
 	client := api.New(stringToEnvName(c.env))
 	c.sessionService = api.NewSessionService(client)
+	c.invoiceService = api.NewInvoiceService(client)
 
 	if loginCmd.Happened() {
 		loginCommand(token, identifier, &c.pathToKey)
@@ -57,6 +66,10 @@ func main() {
 	} else if storeAuthTokenCmd.Happened() {
 		storeAuthToken(*tokenToStore, *identifierToStore, c.env)
 		fmt.Printf("Token for identifier %s for envitnoment: %s stored successfully\n", *identifier, c.env)
+	} else if sendInvoiceCmd.Happened() {
+		sendCommand(sendToken, fileToSend)
+	} else if statusCmd.Happened() {
+		_ = statusCommand(statusToken)
 	}
 
 }
