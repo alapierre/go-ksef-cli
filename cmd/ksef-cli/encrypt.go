@@ -57,26 +57,32 @@ func checkIsEncKeyInitialized() bool {
 }
 
 func storeAuthToken(token, nip, env string) {
+	env = strings.ToUpper(strings.TrimSpace(env))
 	file := fmt.Sprintf(".authorisation_token_%s", nip)
 	storeToken([]byte(token), file, env, nip)
 }
 
 func loadAuthToken(nip, env string) string {
+	env = strings.ToUpper(strings.TrimSpace(env))
 	file := fmt.Sprintf(".authorisation_token_%s", nip)
 	return string(loadToken(file, env, nip))
 }
 
 func storeSessionToken(token *api.AuthenticationTokensResponse, env, nip string) {
+	env = strings.ToUpper(strings.TrimSpace(env))
 	b, err := encodeGob(token)
 	if err != nil {
 		return
 	}
-	storeToken(b, ".session_token", env, nip)
+	file := fmt.Sprintf(".session_token_%s", nip)
+	storeToken(b, file, env, nip)
 }
 
 func loadSessionToken(env, nip string) *api.AuthenticationTokensResponse {
 
-	b := loadToken(".session_token", env, nip)
+	env = strings.ToUpper(strings.TrimSpace(env))
+	file := fmt.Sprintf(".session_token_%s", nip)
+	b := loadToken(file, env, nip)
 	var token api.AuthenticationTokensResponse
 
 	if err := decodeGob(b, &token); err != nil {

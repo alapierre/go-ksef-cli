@@ -15,15 +15,15 @@ import (
 )
 
 type app struct {
-	pathToKey     string
-	env           string
+	pathToKey string
+
 	client        *ksef.Client
 	tokenProvider *ksef.TokenProvider
 	encryptor     *ksef.EncryptionService
 	authFacade    *ksef.AuthFacade
+	env           ksef.Environment
 }
 
-var c app
 var logger = logrus.WithField("component", "KSeF CLI")
 
 func main() {
@@ -43,10 +43,10 @@ func main() {
 	//fileToSend := sendInvoiceCmd.StringPositional(&argparse.Options{Required: true, Help: "XML invoice file or directory"})
 
 	initCmd := parser.NewCommand("init", "initialize encryption key and save it in keystore selected in configuration")
+	forceInit := initCmd.Flag("f", "force", &argparse.Options{Help: "force initialization even if key is already initialized", Default: false, Required: false})
 
-	//storeAuthTokenCmd := parser.NewCommand("store", "encrypt and store authorisation token in keystore selected in configuration")
-	//tokenToStore := storeAuthTokenCmd.String("t", "token", &argparse.Options{Required: true, Help: "KSeF authorisation token"})
-	//identifierToStore := storeAuthTokenCmd.String("i", "identifier", &argparse.Options{Required: true, Help: "Organization identifier (NIP)"})
+	storeAuthTokenCmd := parser.NewCommand("store", "encrypt and store authorisation token in keystore selected in configuration")
+	tokenToStore := storeAuthTokenCmd.String("t", "token", &argparse.Options{Required: true, Help: "KSeF authorisation token"})
 
 	statusCmd := parser.NewCommand("status", "print KSeF session status")
 	//statusToken := statusCmd.String("t", "token", &argparse.Options{Required: false, Help: "KSeF session token, if not provided it will be loaded (you should login first"})
@@ -59,43 +59,57 @@ func main() {
 		os.Exit(1)
 	}
 
+	appContext := prepareAppContext(*token, viper.GetString("env"))
+	ctx := ksef.ContextWithEnv(context.Background(), *identifier, appContext.env)
+
+	if loginCmd.Happened() {
+		loginCommand(ctx, *token, appContext)
+		//} else if logoutCmd.Happened() {
+		//	logoutCommand(sessionToken)
+		//} else if sendInvoiceCmd.Happened() {
+		//	sendCommand(*sendToken, fileToSend)
+	} else if storeAuthTokenCmd.Happened() {
+		storeAuthToken(*tokenToStore, *identifier, appContext.env.Name())
+		fmt.Printf("Token for identifier %s for environment: %s stored successfully\n", *identifier, appContext.env.Name())
+	} else if statusCmd.Happened() {
+		_ = statusCommand(ctx)
+	} else if initCmd.Happened() {
+		initCommand(*forceInit)
+	}
+}
+
+func prepareAppContext(token string, envStr string) *app {
+
+	// jeśli nie ma tokena, to załadować ze store
+	// to będzie wywoływane w dwóch kontekstach
+	// — dla przeprowadzenia pełnego uwierzytelnienia tokenem w ksef w przypadku polecenia login
+	// — pozostałych przypadkach, gdy para tokenów jest zapisana. Wtedy funkcja authenticator będzie inna — otrzyma gotową parę, jeśli refresh jest ważny
+	// — alternatywnie, jeśli refresh jest nie ważny, to może przeprowadzić pełne uwierzytelnienie
+
 	httpClient := &http.Client{
 		Timeout: 15 * time.Second,
 	}
 
-	var env ksef.Environment
-	err = env.UnmarshalText([]byte(c.env))
-	c.authFacade, err = ksef.NewAuthFacade(env, httpClient)
+	var c app
+
+	err := c.env.UnmarshalText([]byte(envStr))
+	c.authFacade, err = ksef.NewAuthFacade(c.env, httpClient)
 
 	if err != nil {
 		logger.Fatal(err)
 	}
 
-	c.encryptor, err = ksef.NewEncryptionService(env, httpClient)
+	c.encryptor, err = ksef.NewEncryptionService(c.env, httpClient)
 	if err != nil {
 		logger.Fatal(err)
 	}
 
 	c.tokenProvider = ksef.NewTokenProvider(c.authFacade, func(ctx context.Context) (*api.AuthenticationTokensResponse, error) {
-		return ksef.WithKsefToken(ctx, c.authFacade, c.encryptor, *token)
+		return ksef.WithKsefToken(ctx, c.authFacade, c.encryptor, token)
 	})
 
-	c.client, err = ksef.NewClient(env, httpClient, c.tokenProvider)
-
-	ctx := ksef.ContextWithEnv(context.Background(), *identifier, env)
-
-	if loginCmd.Happened() {
-		loginCommand(ctx, *token)
-		//} else if logoutCmd.Happened() {
-		//	logoutCommand(sessionToken)
-		//} else if sendInvoiceCmd.Happened() {
-		//	sendCommand(*sendToken, fileToSend)
-	} else if statusCmd.Happened() {
-		_ = statusCommand(ctx)
-	} else if initCmd.Happened() {
-		initCommand()
-	}
-
+	c.client, err = ksef.NewClient(c.env, httpClient, c.tokenProvider)
+	return &c
 }
 
 func config() {
@@ -116,11 +130,6 @@ func config() {
 	if err != nil {
 		fmt.Printf("WARNING: Can't load %s\n", err)
 	}
-
-	keysPath := viper.GetString("mfKeys")
-	ksefEnv := viper.GetString("env")
-	c.pathToKey = fmt.Sprintf("%s/%s/publicKey.pem", keysPath, ksefEnv)
-	c.env = ksefEnv
 
 }
 

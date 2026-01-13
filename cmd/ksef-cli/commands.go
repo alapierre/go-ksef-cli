@@ -17,13 +17,13 @@ import (
 	"github.com/spf13/viper"
 )
 
-func initCommand() {
-	//if checkIsEncKeyInitialized() {
-	//	exitWithError("Encryption key is already stored in keystore")
-	//}
+func initCommand(force bool) {
+	if force || checkIsEncKeyInitialized() {
+		exitWithError("Encryption key is already stored in keystore")
+	}
 	err := initEncryption()
 	if err != nil {
-		exitWithError(fmt.Sprintf("Cannot initalize encryption key: %v", err))
+		exitWithError(fmt.Sprintf("Cannot initialize encryption key: %v", err))
 	}
 	fmt.Println("Encryption key generated and stored")
 }
@@ -32,11 +32,11 @@ func logoutCommand(sessionToken *string) { // TODO: zmienić wskaźnik na string
 	fmt.Printf("not implemented yet\n")
 }
 
-func loginCommand(ctx context.Context, token string) {
+func loginCommand(ctx context.Context, token string, appContext *app) {
 
 	fmt.Println("Trying to login into KSeF")
 
-	ksefToken, err := ksef.WithKsefToken(ctx, c.authFacade, c.encryptor, token)
+	ksefToken, err := ksef.WithKsefToken(ctx, appContext.authFacade, appContext.encryptor, token)
 	if err != nil {
 		return
 	}
@@ -60,7 +60,7 @@ func loginCommand(ctx context.Context, token string) {
 	storeSessionToken(ksefToken, e.Name(), nip)
 }
 
-func sendCommand(token string, file *string) {
+func sendCommand(file *string, appContext *app) {
 
 	if *file == "" {
 		exitWithError("there is no file name to send")
@@ -73,10 +73,10 @@ func sendCommand(token string, file *string) {
 
 	switch mode := fi.Mode(); {
 	case mode.IsDir():
-		processFilesInDir(token, file)
+		processFilesInDir(file, appContext)
 	case mode.IsRegular():
-		key, iv, session := prepareToSend()
-		_, err := sendToKsef(session, key, iv, *file)
+		key, iv, session := prepareToSend(appContext)
+		_, err := sendToKsef(session, key, iv, *file, appContext)
 		if err != nil {
 			exitWithError("Error sending file " + *file)
 		}
@@ -85,7 +85,7 @@ func sendCommand(token string, file *string) {
 	}
 }
 
-func prepareToSend() ([]byte, []byte, string) {
+func prepareToSend(appContext *app) ([]byte, []byte, string) {
 
 	form := api.FormCode{
 		SystemCode:    "FA (3)",
@@ -95,14 +95,14 @@ func prepareToSend() ([]byte, []byte, string) {
 
 	key, err := aes.GenerateRandom256BitsKey()
 	iv, err := aes.GenerateRandom16BytesIv()
-	encryptedKey, err := c.encryptor.EncryptSymmetricKey(context.Background(), key)
+	encryptedKey, err := appContext.encryptor.EncryptSymmetricKey(context.Background(), key)
 
 	enc := api.EncryptionInfo{
 		EncryptedSymmetricKey: encryptedKey,
 		InitializationVector:  iv,
 	}
 
-	session, err := c.client.OpenInteractiveSession(context.Background(), form, enc)
+	session, err := appContext.client.OpenInteractiveSession(context.Background(), form, enc)
 	if err != nil {
 		logger.Fatal(err)
 	}
@@ -110,7 +110,7 @@ func prepareToSend() ([]byte, []byte, string) {
 	return key, iv, string(session.ReferenceNumber)
 }
 
-func processFilesInDir(sessionToken string, file *string) {
+func processFilesInDir(file *string, appContext *app) {
 	files, err := os.ReadDir(*file)
 	if err != nil {
 		exitWithError(fmt.Sprintf("Error sending dir %v", err))
@@ -129,14 +129,14 @@ func processFilesInDir(sessionToken string, file *string) {
 
 	key, err := aes.GenerateRandom256BitsKey()
 	iv, err := aes.GenerateRandom16BytesIv()
-	encryptedKey, err := c.encryptor.EncryptSymmetricKey(ctx, key)
+	encryptedKey, err := appContext.encryptor.EncryptSymmetricKey(ctx, key)
 
 	enc := api.EncryptionInfo{
 		EncryptedSymmetricKey: encryptedKey,
 		InitializationVector:  iv,
 	}
 
-	session, err := c.client.OpenInteractiveSession(ctx, form, enc)
+	session, err := appContext.client.OpenInteractiveSession(ctx, form, enc)
 	if err != nil {
 		logger.Fatal(err)
 	}
@@ -148,7 +148,7 @@ func processFilesInDir(sessionToken string, file *string) {
 			filePath := filepath.Join(*file, f.Name())
 			bar.Increment()
 
-			status, err := sendToKsef(string(session.ReferenceNumber), key, iv, filePath)
+			status, err := sendToKsef(string(session.ReferenceNumber), key, iv, filePath, appContext)
 			if err != nil {
 				errors++
 				results = append(results, err.Error())
@@ -177,7 +177,7 @@ func countFiles(files []os.DirEntry) int {
 	return count
 }
 
-func sendToKsef(session string, key, iv []byte, filePath string) (string, error) {
+func sendToKsef(session string, key, iv []byte, filePath string, appContext *app) (string, error) {
 
 	file, err := os.Open(filePath)
 	if err != nil {
@@ -190,7 +190,7 @@ func sendToKsef(session string, key, iv []byte, filePath string) (string, error)
 		return "", err
 	}
 
-	ref, err := c.client.SendInvoice(context.Background(), session, api.NewOptBool(false), data, key, iv)
+	ref, err := appContext.client.SendInvoice(context.Background(), session, api.NewOptBool(false), data, key, iv)
 	if err != nil {
 		return "", err
 	}
