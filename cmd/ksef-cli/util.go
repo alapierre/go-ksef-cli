@@ -1,27 +1,14 @@
 package main
 
 import (
-	"github.com/alapierre/go-ksef-client/ksef/model"
-	"github.com/jedib0t/go-pretty/v6/table"
 	"os"
+
+	"github.com/alapierre/go-ksef-client/ksef/api"
+	"github.com/jedib0t/go-pretty/v6/table"
+	"github.com/jedib0t/go-pretty/v6/text"
 )
 
-func printSessionStatus(status *model.SessionStatusResponse) {
-
-	t := table.NewWriter()
-	t.SetOutputMirror(os.Stdout)
-	t.AppendHeader(table.Row{"#", "KSeF Reference Number", "Invoice Number", "Processing Code", "Acquisition Timestamp", "Processing Description"})
-
-	for i, s := range status.InvoiceStatusList {
-		t.AppendRows([]table.Row{
-			{i, s.KsefReferenceNumber, s.InvoiceNumber, s.ProcessingCode, s.AcquisitionTimestamp, s.ProcessingDescription},
-		})
-	}
-	t.SetStyle(table.StyleLight)
-	t.Render()
-}
-
-func printInvoiceSendStatus(invoices []*model.SendInvoiceResponse) {
+func printInvoiceSendStatus(invoices []string) {
 
 	t := table.NewWriter()
 	t.SetOutputMirror(os.Stdout)
@@ -29,9 +16,35 @@ func printInvoiceSendStatus(invoices []*model.SendInvoiceResponse) {
 
 	for i, inv := range invoices {
 		t.AppendRows([]table.Row{
-			{i, inv.ElementReferenceNumber, inv.Timestamp, inv.ProcessingCode, inv.ProcessingDescription},
+			{i, inv, inv, inv, inv},
 		})
 	}
+	t.SetStyle(table.StyleLight)
+	t.Render()
+}
+
+func printTokens(r *api.AuthenticationTokensResponse) {
+
+	t := table.NewWriter()
+	t.SetOutputMirror(os.Stdout)
+	t.AppendHeader(table.Row{"Type", "Value", "Valid until"})
+
+	t.SetColumnConfigs([]table.ColumnConfig{
+		{
+			Number:           2,
+			WidthMax:         100,
+			WidthMaxEnforcer: text.WrapSoft,
+		},
+	})
+
+	t.AppendRows([]table.Row{
+		{"Access Token", r.AccessToken.Token, r.AccessToken.ValidUntil},
+	})
+
+	t.AppendRows([]table.Row{
+		{"Refresh Token", r.RefreshToken.Token, r.RefreshToken.ValidUntil},
+	})
+
 	t.SetStyle(table.StyleLight)
 	t.Render()
 }
