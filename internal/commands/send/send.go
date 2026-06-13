@@ -19,7 +19,7 @@ type Cmd struct {
 	Paths      []string `arg:"" name:"path" help:"Files or directories to process." type:"path"`
 	Recursive  bool     `short:"r" help:"Process directories recursively."`
 	Token      string   `short:"t" env:"KSEF_TOKEN" optional:"" help:"KSeF authorisation token, if not provided it will be loaded from keystore (it should be stored first)"`
-	Identifier string   `short:"i" help:"context identifier (NIP)"`
+	Identifier string   `short:"i" required:"" help:"context identifier (NIP)"`
 }
 
 func (c *Cmd) Run(cfg *config.Config) error {
@@ -28,7 +28,12 @@ func (c *Cmd) Run(cfg *config.Config) error {
 		return err
 	}
 
-	appCtx := app.New(c.Token, cfg.Env)
+	token, err := app.ResolveAuthToken(c.Token, cfg.Env, c.Identifier)
+	if err != nil {
+		return err
+	}
+
+	appCtx := app.New(token, cfg.Env)
 	key, iv, session := prepareToSend(appCtx, c.Identifier)
 
 	fmt.Printf("Interactive session ID: %s\n", session)
