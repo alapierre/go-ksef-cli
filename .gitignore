@@ -1,3 +1,6 @@
 /cmd/ksef-cli/ksef-cli
 .idea
 /cmd/ksef-cli/ksef-cli.exe
+/cmd/ksef-cli/ksef-cli.log
+/ksef-cli.log
+/private.env

@@ -1,125 +1,49 @@
 package main
 
 import (
-	"errors"
 	"fmt"
-	"github.com/akamensky/argparse"
-	"github.com/alapierre/go-ksef-client/ksef/api"
-	log "github.com/sirupsen/logrus"
-	"github.com/spf13/viper"
+	"go-ksef-cli/internal/cli"
+	"go-ksef-cli/internal/config"
 	"os"
+
+	"github.com/alecthomas/kong"
+	"github.com/sirupsen/logrus"
 )
 
-type context struct {
-	pathToKey         string
-	env               string
-	sessionService    api.SessionService
-	invoiceService    api.InvoiceService
-	loadEncryptionKey func() []byte
-	initEncryption    func() error
-}
-
-var c context
+var logger = logrus.WithField("component", "KSeF CLI")
 
 func main() {
 
-	parser := argparse.NewParser("ksef-cli", "KSeF Command line interface")
-
-	loginCmd := parser.NewCommand("login", "login into KSeF using provided authorisation token")
-	token := loginCmd.String("t", "token", &argparse.Options{Required: false, Help: "KSeF authorisation token, if not provided it will be loaded from keystore (it should be stored first)"})
-	identifier := loginCmd.String("i", "identifier", &argparse.Options{Required: true, Help: "Organization identifier (NIP)"})
-
-	logoutCmd := parser.NewCommand("logout", "logout from KSeF by close interactive session")
-	sessionToken := logoutCmd.String("t", "token", &argparse.Options{Required: false, Help: "KSeF session token"})
-
-	initCmd := parser.NewCommand("init", "initialize encryption key and save it in keystore selected in configuration")
-
-	storeAuthTokenCmd := parser.NewCommand("store", "encrypt and store authorisation token in keystore selected in configuration")
-	tokenToStore := storeAuthTokenCmd.String("t", "token", &argparse.Options{Required: true, Help: "KSeF authorisation token"})
-	identifierToStore := storeAuthTokenCmd.String("i", "identifier", &argparse.Options{Required: true, Help: "Organization identifier (NIP)"})
-
-	sendInvoiceCmd := parser.NewCommand("send", "send invoice into KSeF")
-	sendToken := sendInvoiceCmd.String("t", "token", &argparse.Options{Required: false, Help: "KSeF session token, if not provided it will be loaded (you should login first"})
-	fileToSend := sendInvoiceCmd.StringPositional(&argparse.Options{Required: true, Help: "XML invoice file or directory"})
-
-	statusCmd := parser.NewCommand("status", "print KSeF session status")
-	statusToken := statusCmd.String("t", "token", &argparse.Options{Required: false, Help: "KSeF session token, if not provided it will be loaded (you should login first"})
-
-	config()
-
-	err := parser.Parse(os.Args)
+	file, err := os.OpenFile(
+		"ksef-cli.log",
+		os.O_CREATE|os.O_WRONLY|os.O_APPEND,
+		0644,
+	)
 	if err != nil {
-		fmt.Print(parser.Usage(err))
-		os.Exit(1)
+		logger.Fatalf("cannot open log file: %v", err)
 	}
+	defer file.Close()
 
-	client := api.New(stringToEnvName(c.env))
-	c.sessionService = api.NewSessionService(client)
-	c.invoiceService = api.NewInvoiceService(client)
+	logrus.SetOutput(file)
 
-	if loginCmd.Happened() {
-		loginCommand(token, identifier, &c.pathToKey)
-	} else if logoutCmd.Happened() {
-		logoutCommand(sessionToken)
-	} else if initCmd.Happened() {
-		initCommand()
-	} else if storeAuthTokenCmd.Happened() {
-		storeAuthToken(*tokenToStore, *identifierToStore, c.env)
-		fmt.Printf("Token for identifier %s for envitnoment: %s stored successfully\n", *identifier, c.env)
-	} else if sendInvoiceCmd.Happened() {
-		sendCommand(sendToken, fileToSend)
-	} else if statusCmd.Happened() {
-		_ = statusCommand(statusToken)
-	}
+	logger.Info("Application started")
 
-}
+	var appCli cli.CLI
 
-func handleError(err error) {
-	if err != nil {
-		var re *api.RequestError
-		ok := errors.As(err, &re)
-		if ok {
-			log.Errorf("request error %d responce body %s", re.StatusCode, re.Body)
-			os.Exit(1)
-		}
-		panic(err)
-	}
-}
+	ctx := kong.Parse(&appCli,
+		kong.Name(config.AppName),
+		kong.Description("KSeF command line interface"),
+		kong.Bind(&appCli.Config),
+	)
 
-func config() {
-	viper.SetConfigName("config.env")
-	viper.SetConfigType("env")
-	viper.AddConfigPath("$HOME/.go-ksef-cli")
-	viper.AddConfigPath(".")
+	ctx.FatalIfErrorf(ctx.Run())
 
-	viper.SetEnvPrefix("KSEF_")
-	viper.AutomaticEnv()
-
-	viper.SetDefault("env", "test")
-	viper.SetDefault("mfKeys", "keys")
-	viper.SetDefault("keystore", "desktop")
-	viper.SetDefault("printSessionToken", "true")
-
-	err := viper.ReadInConfig()
-	if err != nil {
-		fmt.Printf("WARNING: Can't load %s\n", err)
-	}
-
-	keysPath := viper.GetString("mfKeys")
-	ksefEnv := viper.GetString("env")
-	c.pathToKey = fmt.Sprintf("%s/%s/publicKey.pem", keysPath, ksefEnv)
-	c.env = ksefEnv
-
-}
-
-func stringToEnvName(env string) api.Environment {
-	if env == "demo" {
-		return api.Demo
-	} else if env == "prod" {
-		return api.Prod
-	} else {
-		return api.Test
-	}
+	//logoutCmd := parser.NewCommand("logout", "logout from KSeF by close interactive session")
+	//sessionToken := logoutCmd.String("t", "token", &argparse.Options{Required: false, Help: "KSeF session token"})
+	//
+	//sendInvoiceCmd := parser.NewCommand("send", "send invoice into KSeF")
+	//sendToken := sendInvoiceCmd.String("t", "token", &argparse.Options{Required: false, Help: "KSeF session token, if not provided it will be loaded (you should login first"})
+	//fileToSend := sendInvoiceCmd.StringPositional(&argparse.Options{Required: true, Help: "XML invoice file or directory"})
 }
 
 func exitWithError(message string) {
