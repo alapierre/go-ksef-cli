@@ -2,6 +2,7 @@ package cli
 
 import (
 	"go-ksef-cli/internal/commands/initcmd"
+	"go-ksef-cli/internal/commands/invoice"
 	"go-ksef-cli/internal/commands/login"
 	"go-ksef-cli/internal/commands/printcmd"
 	"go-ksef-cli/internal/commands/query"
@@ -22,5 +23,6 @@ type CLI struct {
 	Send    send.Cmd     `cmd:"send" help:"Send XML Invoice files to KSeF'"`
 	Query   query.Cmd    `cmd:"query" help:"Query invoices form KSeF"`
 	Session session.Cmd  `cmd:"session" help:"Manage KSeF session"`
+	Invoice invoice.Cmd  `cmd:"invoice" help:"Manage invoices"`
 	Version version.Cmd  `cmd:"version" help:"Print CLI version"`
 }
