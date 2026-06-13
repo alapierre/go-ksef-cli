@@ -1,77 +1,321 @@
 # go-ksef-cli
-Simple KSeF Command Line Interface
 
-# Instalacja
+`go-ksef-cli` is a command-line client for working with KSeF from a terminal. It can initialize local encrypted token storage, 
+store a KSeF authorisation token, log in, send XML invoices, query invoice metadata, export query results to CSV.
 
-- pobrać i rozpakować archiwum dla wybranego systemu operacyjnego (obecnie Linux x64 lub Windows x64) ze strony https://github.com/alapierre/go-ksef-cli/releases
-- dostosować opcje konfiguracyjne, w szczególności ścieżka do kluczy, środowisko (test, demo, prod) 
+## Installation
 
-# Konfiguracja
+Download and unpack a release archive for your operating system from the project releases page:
 
-Plik `config.env` zawiera dostępne opcje konfiguracyjne. Plik może zostać zapisany w jednej s z dwóch lokalizacji:
+```shell
+https://github.com/alapierre/go-ksef-cli/releases
+```
 
-1. w katalogu domowym użytkownika  `$HOME/.go-ksef-cli/config.env` - ta lokalizacja ma priorytet
-2. w katalogu, z którego uruchamiana jest aplikacja `config.env` - w drugiej kolejności aplikacja szuka tutaj
+Then put the `ksef-cli` binary on your `PATH`, or run it directly from the unpacked directory.
 
-# Przechowywanie tokena autoryzacyjnego
+## Configuration model
 
-Aplikacja przechowuje token autoryzacyjny w postaci zaszyfrowanej w pliku zapisanym w katalogu domowym użytkownika. Klucz szyfrowania zapisany
-jest w systemowym zasobniku haseł. Przed zapisaniem tokena, należy zainicjować klucz i go zapisać za pomocą polecenia:
+All options are passed as command-line flags or environment variables. Global options are available on every command:
+
+| Flag         | Environment variable | Default   | Description                                  |
+|--------------|----------------------|-----------|----------------------------------------------|
+| `--env`      | `KSEF_ENVIRONMENT`   | `TEST`    | KSeF environment: `TEST`, `DEMO`, or `PROD`. |
+| `--keystore` | `KSEF_KEYSTORE_TYPE` | `desktop` | Keystore type for the local encryption key.  |
+
+Example:
+
+```shell
+ksef-cli --env DEMO query --identifier 1234567890 --date-from 2026-06-01T00:00:00
+```
+
+The same environment can be selected with an environment variable:
+
+```shell
+export KSEF_ENVIRONMENT=DEMO
+ksef-cli query --identifier 1234567890 --date-from 2026-06-01T00:00:00
+```
+
+## KSeF authorisation token handling
+
+Commands that need a KSeF authorisation token accept it with `--token` / `-t` or the `KSEF_TOKEN` environment variable.
+
+```shell
+ksef-cli query \
+  --identifier 1234567890 \
+  --token "__ksef_authorisation_token__" \
+  --date-from 2026-06-01T00:00:00
+```
+
+For regular use, you can store the authorisation token locally in encrypted form and then omit `--token` from commands that load the stored token.
+
+Token storage must be initialized first:
 
 ```shell
 ksef-cli init
 ```
 
-Następnie można zapisać token:
+`init` generates an encryption key and saves it in the selected keystore. With the default `desktop` keystore, the key is stored in the system keyring.
+
+Then store the KSeF authorisation token for a given NIP and environment:
 
 ```shell
-ksef-cli store -t __token_autoryzacyjny___ -i __nip___
+ksef-cli --env TEST store \
+  --identifier 1234567890 \
+  --token "__ksef_authorisation_token__"
 ```
 
-Tokeny dla różnych środowisk (test, demo, prod) są zapisywane w odrębnych katalogach w `$USER_HOME/.go-ksef-cli`
+The encrypted token file is stored under:
 
-# Logowanie się do ksef
+```text
+$HOME/.go-ksef-cli/<ENV>/.authorisation_token_<NIP>
+```
 
-Jeśli token autoryzacyjny nie został zapisany
+The encrypted file is bound to the environment and NIP. Tokens for `TEST`, `DEMO`, and `PROD` are stored separately.
+
+You can also provide the token through an environment variable when storing it:
 
 ```shell
-ksef-cli login -t __token_autoryzacyjny___ -i __nip___
+export KSEF_TOKEN="__ksef_authorisation_token__"
+ksef-cli --env TEST store --identifier 1234567890
 ```
 
-Jeśli wcześniej zapisano token autoryzacyjny
+## Commands
+
+### `init`
+
+Initializes the local encryption key used to encrypt tokens saved on disk.
 
 ```shell
-ksef-cli login -i __nip___
+ksef-cli init
 ```
 
-# Wysłanie faktury lub faktur
+Flags:
+
+| Flag           | Description                                                  |
+|----------------|--------------------------------------------------------------|
+| `--force-init` | Force initialization even if the key is already initialized. |
+
+### `store`
+
+Encrypts and stores a KSeF authorisation token for a NIP and environment.
 
 ```shell
-ksef-cli send /home/adrian/invoices
+ksef-cli --env TEST store \
+  --identifier 1234567890 \
+  --token "__ksef_authorisation_token__"
 ```
 
-Wyśle wszystkie pliki XML z podanego katalogu
+Flags:
+
+| Flag                 | Environment variable | Required | Description                                   |
+|----------------------|----------------------|----------|-----------------------------------------------|
+| `-i`, `--identifier` |                      | Yes      | Context identifier, usually the taxpayer NIP. |
+| `-t`, `--token`      | `KSEF_TOKEN`         | Yes      | KSeF authorisation token to store.            |
+
+### `login`
+
+Logs in to KSeF with an authorisation token. If `--token` is omitted, the CLI tries to load the encrypted authorisation token stored with `store`.
+
+By default, the received session tokens are stored encrypted on disk.
 
 ```shell
-ksef-cli send /home/adrian/invoices/FA2.xml
+ksef-cli --env TEST login --identifier 1234567890
 ```
 
-Wyśle wskazany plik
-
-# Sprawdzenie statusu aktualnej sesji
+With an explicit token:
 
 ```shell
-ksef-cli status
+ksef-cli --env TEST login \
+  --identifier 1234567890 \
+  --token "__ksef_authorisation_token__"
 ```
 
-# Zakończenie sesji
+Flags:
+
+| Flag                          | Environment variable       | Description                                                               |
+|-------------------------------|----------------------------|---------------------------------------------------------------------------|
+| `-i`, `--identifier`          |                            | Context identifier, usually the taxpayer NIP.                             |
+| `-t`, `--token`               | `KSEF_TOKEN`               | KSeF authorisation token. If omitted, the stored encrypted token is used. |
+| `-p`, `--print-session-token` | `KSEF_PRINT_SESSION_TOKEN` | Print the returned session tokens.                                        |
+| `-n`, `--no-store`            |                            | Do not store returned session tokens.                                     |
+
+Encrypted session token files are stored under:
+
+```text
+$HOME/.go-ksef-cli/<ENV>/.session_token_<NIP>
+```
+
+### `print`
+
+Prints stored KSeF session tokens for the selected NIP and environment.
 
 ```shell
-ksef-cli logout
+ksef-cli --env TEST print --identifier 1234567890
 ```
 
-Zakończenie innej sesji niż ostatnio otwarta
+Flags:
+
+| Flag                 | Required | Description                                   |
+|----------------------|----------|-----------------------------------------------|
+| `-i`, `--identifier` | Yes      | Context identifier, usually the taxpayer NIP. |
+
+### `send`
+
+Sends XML invoice files to KSeF. The command accepts one or more files or directories. When a directory is provided, only files with the `.xml` extension are sent.
 
 ```shell
-ksef-cli logout -t __token_sesjny__
+ksef-cli --env TEST send \
+  --identifier 1234567890 \
+  --token "__ksef_authorisation_token__" \
+  ./invoices
 ```
+
+Send a single file:
+
+```shell
+ksef-cli --env TEST send \
+  --identifier 1234567890 \
+  --token "__ksef_authorisation_token__" \
+  ./invoices/FA_1.xml
+```
+
+Process directories recursively:
+
+```shell
+ksef-cli --env TEST send \
+  --identifier 1234567890 \
+  --token "__ksef_authorisation_token__" \
+  --recursive \
+  ./invoices
+```
+
+Flags:
+
+| Flag                 | Environment variable | Description                                   |
+|----------------------|----------------------|-----------------------------------------------|
+| `-i`, `--identifier` |                      | Context identifier, usually the taxpayer NIP. |
+| `-t`, `--token`      | `KSEF_TOKEN`         | KSeF authorisation token.                     |
+| `-r`, `--recursive`  |                      | Process directory arguments recursively.      |
+
+### `query`
+
+Queries invoice metadata from KSeF. This command is useful for listing received or issued invoices and for exporting invoice metadata to CSV.
+
+`--identifier` and `--date-from` are required. If `--token` is omitted, the CLI tries to load the encrypted authorisation token stored with `store`.
+
+Basic query:
+
+```shell
+ksef-cli --env TEST query \
+  --identifier 1234567890 \
+  --date-from 2026-06-01T00:00:00
+```
+
+Query a date range:
+
+```shell
+ksef-cli --env TEST query \
+  --identifier 1234567890 \
+  --date-from 2026-06-01T00:00:00 \
+  --date-to 2026-06-30T23:59:59
+```
+
+Query buyer-side invoices and sort newest first:
+
+```shell
+ksef-cli --env TEST query \
+  --identifier 1234567890 \
+  --subject-type Subject2 \
+  --sort-order Desc \
+  --date-from 2026-06-01T00:00:00
+```
+
+Limit page size and read the next page:
+
+```shell
+ksef-cli --env TEST query \
+  --identifier 1234567890 \
+  --date-from 2026-06-01T00:00:00 \
+  --page-size 100 \
+  --page-offset 100
+```
+
+#### CSV export
+
+Use `--export FILE` to write invoice metadata to a CSV file. The command still prints the terminal table after writing the file.
+
+```shell
+ksef-cli --env TEST query \
+  --identifier 1234567890 \
+  --date-from 2026-06-01T00:00:00 \
+  --date-to 2026-06-30T23:59:59 \
+  --export invoices-june-2026.csv
+```
+
+The CSV export contains richer metadata than the terminal table.
+
+`third_subjects` is written as a JSON array inside a CSV field.
+
+Query flags:
+
+| Flag                  | Environment variable | Default            | Description                                                                    |
+|-----------------------|----------------------|--------------------|--------------------------------------------------------------------------------|
+| `-i`, `--identifier`  |                      |                    | Required. Context identifier, usually the taxpayer NIP.                        |
+| `-t`, `--token`       | `KSEF_TOKEN`         |                    | KSeF authorisation token. If omitted, the stored encrypted token is used.      |
+| `-f`, `--date-from`   |                      |                    | Required. Start of date range, for example `2026-06-01T00:00:00`.              |
+| `--date-to`           |                      | Current UTC time   | End of date range, for example `2026-06-30T23:59:59`.                          |
+| `--date-type`         |                      | `PermanentStorage` | Date filter type: `Issue`, `Invoicing`, or `PermanentStorage`.                 |
+| `--subject-type`      |                      | `Subject1`         | KSeF subject type: `Subject1`, `Subject2`, `Subject3`, or `SubjectAuthorized`. |
+| `-s`, `--sort-order`  |                      | `Asc`              | Sort order: `Asc` or `Desc`.                                                   |
+| `-o`, `--page-offset` |                      | `0`                | Page offset.                                                                   |
+| `-p`, `--page-size`   |                      | `250`              | Page size. KSeF supports up to `250`.                                          |
+| `--hwm`               |                      | `false`            | Restrict to permanent storage high water mark date.                            |
+| `--self-invoicing`    |                      | `false`            | Include self-invoicing filter.                                                 |
+| `--form-type`         |                      | `FA`               | Schema form type: `FA`, `PEF`, or `FA_RR`.                                     |
+| `--export`            |                      |                    | Path to CSV export file.                                                       |
+
+### `version`
+
+Prints the CLI version.
+
+```shell
+ksef-cli version
+```
+
+## Common workflows
+
+### One-off query with a token passed directly
+
+```shell
+ksef-cli --env TEST query \
+  --identifier 1234567890 \
+  --token "__ksef_authorisation_token__" \
+  --date-from 2026-06-01T00:00:00 \
+  --export invoices.csv
+```
+
+### Initialize encrypted storage and reuse the stored token
+
+```shell
+ksef-cli init
+ksef-cli --env TEST store --identifier 1234567890 --token "__ksef_authorisation_token__"
+ksef-cli --env TEST query --identifier 1234567890 --date-from 2026-06-01T00:00:00
+```
+
+### Use environment variables instead of repeated flags
+
+```shell
+export KSEF_ENVIRONMENT=TEST
+export KSEF_TOKEN="__ksef_authorisation_token__"
+
+ksef-cli query \
+  --identifier 1234567890 \
+  --date-from 2026-06-01T00:00:00 \
+  --export invoices.csv
+```
+
+## Notes
+
+- The CLI writes logs to `ksef-cli.log` in the current working directory.
+- Date-time flags are passed as values like `2026-06-01T00:00:00`.
+- `status` and `logout` are not available commands in this version.

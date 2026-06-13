@@ -1,4 +1,4 @@
-package main
+package app
 
 import (
 	"os"
@@ -8,22 +8,7 @@ import (
 	"github.com/jedib0t/go-pretty/v6/text"
 )
 
-func printInvoiceSendStatus(invoices []string) {
-
-	t := table.NewWriter()
-	t.SetOutputMirror(os.Stdout)
-	t.AppendHeader(table.Row{"#", "Reference Number", "Timestamp", "Processing Code", "Processing Description"})
-
-	for i, inv := range invoices {
-		t.AppendRows([]table.Row{
-			{i, inv, inv, inv, inv},
-		})
-	}
-	t.SetStyle(table.StyleLight)
-	t.Render()
-}
-
-func printTokens(r *api.AuthenticationTokensResponse) {
+func PrintTokens(r *api.AuthenticationTokensResponse) {
 
 	t := table.NewWriter()
 	t.SetOutputMirror(os.Stdout)
