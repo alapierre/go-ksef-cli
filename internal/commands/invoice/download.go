@@ -21,6 +21,7 @@ var logger = logrus.WithField("component", "command invoice")
 
 type Cmd struct {
 	Download DownloadCmd `cmd:"" help:"Download invoice(s)"`
+	Export   ExportCmd   `cmd:"export" help:"Export invoices to ZIP package"`
 	PDF      PDFCmd      `cmd:"pdf" help:"Generate PDF visualizations for XML invoice files - it use ITrust KSeF PDF Service"`
 }
 

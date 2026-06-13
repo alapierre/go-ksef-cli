@@ -23,6 +23,10 @@ type App struct {
 }
 
 func New(token, env string) *App {
+	return NewWithHTTPTimeout(token, env, 15*time.Second)
+}
+
+func NewWithHTTPTimeout(token, env string, timeout time.Duration) *App {
 
 	// jeśli nie ma tokena, to załadować ze store
 	// to będzie wywoływane w dwóch kontekstach
@@ -31,7 +35,7 @@ func New(token, env string) *App {
 	// — alternatywnie, jeśli refresh jest nie ważny, to może przeprowadzić pełne uwierzytelnienie
 
 	httpClient := &http.Client{
-		Timeout: 15 * time.Second,
+		Timeout: timeout,
 	}
 
 	var c App

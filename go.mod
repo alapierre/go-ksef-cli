@@ -5,7 +5,7 @@ go 1.26.0
 toolchain go1.26.4
 
 require (
-	github.com/alapierre/go-ksef-client v0.9.0
+	github.com/alapierre/go-ksef-client v0.9.1
 	github.com/alecthomas/kong v1.15.0
 	github.com/cheggaaa/pb/v3 v3.1.7
 	github.com/jedib0t/go-pretty/v6 v6.8.1

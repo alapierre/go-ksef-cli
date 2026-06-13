@@ -1,7 +1,7 @@
 # go-ksef-cli
 
-`go-ksef-cli` is a command-line client for working with KSeF from a terminal. It can initialize local encrypted token storage, 
-store a KSeF authorisation token, log in, send XML invoices, query invoice metadata, export query results to CSV.
+`go-ksef-cli` is a command-line client for working with KSeF from a terminal. It can initialize local encrypted token storage,
+store a KSeF authorisation token, log in, send XML invoices, query invoice metadata, export query results to CSV, and export invoices to ZIP packages.
 
 ## Installation
 
@@ -273,6 +273,46 @@ Query flags:
 | `--self-invoicing`    |                      | `false`            | Include self-invoicing filter.                                                 |
 | `--form-type`         |                      | `FA`               | Schema form type: `FA`, `PEF`, or `FA_RR`.                                     |
 | `--export`            |                      |                    | Path to CSV export file.                                                       |
+
+### `invoice export`
+
+Starts a KSeF invoice export, waits until the package is ready, downloads it, decrypts it, and writes the resulting ZIP file to the selected path. The CLI does not unpack the ZIP package.
+
+```shell
+ksef-cli --env TEST invoice export \
+  --identifier 1234567890 \
+  --date-from 2026-06-01T00:00:00 \
+  --date-to 2026-06-30T23:59:59 \
+  ksef-invoices-export.zip
+```
+
+Export buyer-side invoices:
+
+```shell
+ksef-cli --env TEST invoice export \
+  --identifier 1234567890 \
+  --subject-type Subject2 \
+  --date-from 2026-06-01T00:00:00 \
+  invoices.zip
+```
+
+Invoice export flags:
+
+| Flag                  | Environment variable | Default            | Description                                                                    |
+|-----------------------|----------------------|--------------------|--------------------------------------------------------------------------------|
+| `-i`, `--identifier`  |                      |                    | Required. Context identifier, usually the taxpayer NIP.                        |
+| `-t`, `--token`       | `KSEF_TOKEN`         |                    | KSeF authorisation token. If omitted, the stored encrypted token is used.      |
+| `-f`, `--date-from`   |                      |                    | Required. Start of date range, for example `2026-06-01T00:00:00`.              |
+| `--date-to`           |                      | Current UTC time   | End of date range, for example `2026-06-30T23:59:59`.                          |
+| `--date-type`         |                      | `PermanentStorage` | Date filter type: `Issue`, `Invoicing`, or `PermanentStorage`.                 |
+| `--subject-type`      |                      | `Subject1`         | KSeF subject type: `Subject1`, `Subject2`, `Subject3`, or `SubjectAuthorized`. |
+| `--hwm`               |                      | `false`            | Restrict to permanent storage high water mark date.                            |
+| `--self-invoicing`    |                      | `false`            | Restrict to self-invoicing invoices.                                           |
+| `--form-type`         |                      | `FA`               | Schema form type: `FA`, `PEF`, or `FA_RR`.                                     |
+| `--only-metadata`     |                      | `false`            | Export only invoice metadata.                                                  |
+| `--poll-interval`     |                      | `5s`               | Invoice export status polling interval.                                        |
+| `--wait-timeout`      |                      | `30m`              | Maximum time to wait for export package. Use `0` for no timeout.               |
+| `--request-timeout`   |                      | `10m`              | HTTP request timeout used by export operations.                                |
 
 ### `version`
 
