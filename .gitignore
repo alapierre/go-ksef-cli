@@ -4,3 +4,4 @@
 /cmd/ksef-cli/ksef-cli.log
 /ksef-cli.log
 /private.env
+/cmd/ksef-cli/out.csv

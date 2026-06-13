@@ -1,0 +1,78 @@
+name: GitHub Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build and publish release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Test
+        run: go test ./...
+
+      - name: Build release assets
+        env:
+          CGO_ENABLED: "0"
+          VERSION: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+
+          mkdir -p dist
+
+          build() {
+            local goos="$1"
+            local goarch="$2"
+            local ext="$3"
+            local binary="ksef-cli${ext}"
+            local package="ksef-cli_${VERSION}_${goos}_${goarch}"
+
+            echo "Building ${goos}/${goarch}"
+
+            GOOS="${goos}" GOARCH="${goarch}" go build \
+              -trimpath \
+              -ldflags="-s -w -X go-ksef-cli/internal/commands/version.Version=${VERSION}" \
+              -o "dist/${binary}" \
+              ./cmd/ksef-cli
+
+            if [ "${goos}" = "windows" ]; then
+              (cd dist && zip "${package}.zip" "${binary}")
+              rm "dist/${binary}"
+            else
+              (cd dist && tar -czf "${package}.tar.gz" "${binary}")
+              rm "dist/${binary}"
+            fi
+          }
+
+          build linux amd64 ""
+          build linux arm64 ""
+          build windows amd64 ".exe"
+          build darwin amd64 ""
+          build darwin arm64 ""
+
+          (cd dist && sha256sum * > checksums.txt)
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # 3.0.0
+        with:
+          files: dist/*
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
