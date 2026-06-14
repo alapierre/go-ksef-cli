@@ -13,7 +13,7 @@ What you can do with it:
 |--------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | Authentication     | Initialize encrypted local storage, store KSeF authorisation tokens, log in, and reuse stored tokens without passing them on every command.                 |
 | Multi-context work | Work with multiple taxpayer contexts by NIP. Stored tokens are scoped by KSeF environment and identifier, so `TEST`, `DEMO`, and `PROD` data stay separate. |
-| Invoice sending    | Send one XML invoice file or process directories with invoice XML files.                                                                                    |
+| Invoice sending    | Send XML invoice files online or as a batch, including processing directories with invoice XML files.                                                       |
 | Invoice lookup     | Query invoice metadata by date range, subject type, date type, pagination, and sorting.                                                                     |
 | Data export        | Export query results to CSV, download KSeF invoice export ZIP packages, and create CSV reports from exported ZIP files.                                     |
 | Reporting          | Turn an export ZIP into `invoices.csv` and `invoice_rows.csv`, with invoice line items linked back to invoice metadata by `ksef_number`.                    |
@@ -179,12 +179,12 @@ Flags:
 |----------------------|----------|-----------------------------------------------|
 | `-i`, `--identifier` | Yes      | Context identifier, usually the taxpayer NIP. |
 
-### `send`
+### `send online`
 
-Sends XML invoice files to KSeF. The command accepts one or more files or directories. When a directory is provided, only files with the `.xml` extension are sent.
+Sends XML invoice files to KSeF using an interactive session. The command accepts one or more files or directories. When a directory is provided, only files with the `.xml` extension are sent.
 
 ```shell
-ksef-cli --env TEST send \
+ksef-cli --env TEST send online \
   --identifier 1234567890 \
   --token "__ksef_authorisation_token__" \
   ./invoices
@@ -193,7 +193,7 @@ ksef-cli --env TEST send \
 Send a single file:
 
 ```shell
-ksef-cli --env TEST send \
+ksef-cli --env TEST send online \
   --identifier 1234567890 \
   --token "__ksef_authorisation_token__" \
   ./invoices/FA_1.xml
@@ -202,12 +202,14 @@ ksef-cli --env TEST send \
 Process directories recursively:
 
 ```shell
-ksef-cli --env TEST send \
+ksef-cli --env TEST send online \
   --identifier 1234567890 \
   --token "__ksef_authorisation_token__" \
   --recursive \
   ./invoices
 ```
+
+For compatibility, `send` without the explicit `online` subcommand still selects the online sending mode when the arguments match that command.
 
 Flags:
 
@@ -216,6 +218,58 @@ Flags:
 | `-i`, `--identifier` |                      | Context identifier, usually the taxpayer NIP. |
 | `-t`, `--token`      | `KSEF_TOKEN`         | KSeF authorisation token.                     |
 | `-r`, `--recursive`  |                      | Process directory arguments recursively.      |
+
+### `send batch`
+
+Sends XML invoice files to KSeF using a batch session. The CLI builds the batch package from XML files, opens a batch session, uploads all encrypted batch parts, closes the batch session, and prints the batch session ID.
+
+Closing the batch session is required by KSeF before invoices from the batch start processing. Invoice statuses for a batch session are checked with the same `session invoices` command used for online sessions.
+
+```shell
+ksef-cli --env TEST send batch \
+  --identifier 1234567890 \
+  --token "__ksef_authorisation_token__" \
+  ./invoices
+```
+
+Process directories recursively:
+
+```shell
+ksef-cli --env TEST send batch \
+  --identifier 1234567890 \
+  --token "__ksef_authorisation_token__" \
+  --recursive \
+  ./invoices
+```
+
+Keep generated ZIP and encrypted part files for inspection:
+
+```shell
+ksef-cli --env TEST send batch \
+  --identifier 1234567890 \
+  --keep-files \
+  --output-dir ./batch-work \
+  ./invoices
+```
+
+After the command prints the batch session ID, check invoice processing status with:
+
+```shell
+ksef-cli --env TEST session invoices \
+  --identifier 1234567890 \
+  --session-id "__batch_session_id__"
+```
+
+Flags:
+
+| Flag                 | Environment variable | Description                                                             |
+|----------------------|----------------------|-------------------------------------------------------------------------|
+| `-i`, `--identifier` |                      | Context identifier, usually the taxpayer NIP.                           |
+| `-t`, `--token`      | `KSEF_TOKEN`         | KSeF authorisation token.                                               |
+| `-r`, `--recursive`  |                      | Process directory arguments recursively.                                |
+| `--output-dir`       |                      | Directory for temporary batch files. Defaults to the system temp dir.    |
+| `--max-part-size`    |                      | Maximum plain ZIP part size in bytes before encryption. Default: 100MB. |
+| `--keep-files`       |                      | Keep generated ZIP and encrypted part files after sending.              |
 
 ### `query`
 

@@ -12,26 +12,34 @@ import (
 	"github.com/alapierre/go-ksef-client/ksef/api"
 )
 
-func prepareToSend(appContext *app.App, nip string) ([]byte, []byte, string) {
+func prepareToSend(appContext *app.App, nip string) ([]byte, []byte, string, error) {
 
-	form := api.FormCode{
+	key, err := aes.GenerateRandom256BitsKey()
+	if err != nil {
+		return nil, nil, "", fmt.Errorf("generate AES key: %w", err)
+	}
+
+	iv, err := aes.GenerateRandom16BytesIv()
+	if err != nil {
+		return nil, nil, "", fmt.Errorf("generate AES IV: %w", err)
+	}
+
+	ctx := ksef.ContextWithEnv(context.Background(), nip, appContext.Env)
+
+	session, err := appContext.Client.OpenInteractiveSession(ctx, defaultFormCode(), key, iv)
+	if err != nil {
+		return nil, nil, "", fmt.Errorf("open interactive session: %w", err)
+	}
+
+	return key, iv, string(session.ReferenceNumber), nil
+}
+
+func defaultFormCode() api.FormCode {
+	return api.FormCode{
 		SystemCode:    "FA (3)",
 		SchemaVersion: "1-0E",
 		Value:         "FA",
 	}
-
-	key, err := aes.GenerateRandom256BitsKey()
-	iv, err := aes.GenerateRandom16BytesIv()
-
-	ctx := ksef.ContextWithEnv(context.Background(), nip, appContext.Env)
-
-	session, err := appContext.Client.OpenInteractiveSession(ctx, form, key, iv)
-	if err != nil {
-		fmt.Printf("error opening session %v\n", err)
-		logger.Fatal(err)
-	}
-
-	return key, iv, string(session.ReferenceNumber)
 }
 
 func sendToKsef(nip, session string, key, iv []byte, filePath string, appContext *app.App) (string, error) {
