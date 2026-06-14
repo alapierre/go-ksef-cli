@@ -1,7 +1,27 @@
 # go-ksef-cli
 
-`go-ksef-cli` is a command-line client for working with KSeF from a terminal. It can initialize local encrypted token storage,
-store a KSeF authorisation token, log in, send XML invoices, query invoice metadata, export query results to CSV, export invoices to ZIP packages, and create CSV reports from exported ZIP packages.
+`go-ksef-cli` is a command-line client for working with KSeF from a terminal. It is useful both as a practical day-to-day tool
+and as a small reference application showing how to use the [`go-ksef`](https://github.com/alapierre/go-ksef) KSeF client library from Go.
+
+The CLI helps you work with KSeF without building a full integration platform first. It can be used by developers testing KSeF flows,
+accounting teams preparing data for Excel, small businesses that need a lightweight operational tool,
+and anyone who wants scriptable access to invoices, metadata, exports, and reports.
+
+What you can do with it:
+
+| Area               | Capabilities                                                                                                                                                |
+|--------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Authentication     | Initialize encrypted local storage, store KSeF authorisation tokens, log in, and reuse stored tokens without passing them on every command.                 |
+| Multi-context work | Work with multiple taxpayer contexts by NIP. Stored tokens are scoped by KSeF environment and identifier, so `TEST`, `DEMO`, and `PROD` data stay separate. |
+| Invoice sending    | Send one XML invoice file or process directories with invoice XML files.                                                                                    |
+| Invoice lookup     | Query invoice metadata by date range, subject type, date type, pagination, and sorting.                                                                     |
+| Data export        | Export query results to CSV, download KSeF invoice export ZIP packages, and create CSV reports from exported ZIP files.                                     |
+| Reporting          | Turn an export ZIP into `invoices.csv` and `invoice_rows.csv`, with invoice line items linked back to invoice metadata by `ksef_number`.                    |
+
+Tokens are stored encrypted on disk. The encryption key is kept in the selected keystore, with the default `desktop` keystore using the operating system keyring.
+This makes regular use more convenient while avoiding plain-text token files in project directories or shell history.
+
+Planned development includes support for KSeF certificates, so the tool can cover more authentication and signing scenarios as the KSeF ecosystem evolves.
 
 ## Installation
 
@@ -263,7 +283,7 @@ Query flags:
 | `-i`, `--identifier`  |                      |                    | Required. Context identifier, usually the taxpayer NIP.                        |
 | `-t`, `--token`       | `KSEF_TOKEN`         |                    | KSeF authorisation token. If omitted, the stored encrypted token is used.      |
 | `-f`, `--date-from`   |                      |                    | Required. Start of date range, for example `2026-06-01T00:00:00`.              |
-| `--date-to`           |                      | Current UTC time   | End of date range, for example `2026-06-30T23:59:59`.                          |
+| `--date-to`           |                      | KSeF current UTC   | End of date range, for example `2026-06-30T23:59:59`. When omitted, the field is not sent and KSeF applies its default. |
 | `--date-type`         |                      | `PermanentStorage` | Date filter type: `Issue`, `Invoicing`, or `PermanentStorage`.                 |
 | `--subject-type`      |                      | `Subject1`         | KSeF subject type: `Subject1`, `Subject2`, `Subject3`, or `SubjectAuthorized`. |
 | `-s`, `--sort-order`  |                      | `Asc`              | Sort order: `Asc` or `Desc`.                                                   |

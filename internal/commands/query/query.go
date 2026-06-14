@@ -23,7 +23,7 @@ type Cmd struct {
 	PageSize      int32     `short:"p" default:"250" help:"page size (250 max)"`
 	SubjectType   string    `enum:"Subject1,Subject2,Subject3,SubjectAuthorized" default:"Subject1" help:"KSeF Subject type"`
 	DateFrom      time.Time `short:"f" required:"" help:"date from (yyyy-MM-ddTHH:mm:ss)"`
-	DateTo        time.Time `optional:"" help:"date to (yyyy-MM-ddTHH:mm:ss), default is now in UTC"`
+	DateTo        time.Time `optional:"" help:"date to (yyyy-MM-ddTHH:mm:ss); when omitted, KSeF uses current UTC time"`
 	DateType      string    `enum:"Issue,Invoicing,PermanentStorage" default:"PermanentStorage" help:"Date type (Issue|Invoicing|PermanentStorage)"`
 	Hwm           bool      `default:"false" help:"restrict to permanent storage high water mark date"`
 	SelfInvoicing bool      `help:"include or no self invoicing"`
@@ -93,12 +93,17 @@ func (c *Cmd) filers() *api.InvoiceQueryFilters {
 		rangeType = api.InvoiceQueryDateTypePermanentStorage
 	}
 
+	dateTo := api.OptNilDateTime{}
+	if !c.DateTo.IsZero() {
+		dateTo = api.NewOptNilDateTime(c.DateTo)
+	}
+
 	filters := api.InvoiceQueryFilters{
 		SubjectType: subjectType,
 		DateRange: api.InvoiceQueryDateRange{
 			DateType:                          rangeType,
 			From:                              c.DateFrom,
-			To:                                api.NewOptNilDateTime(c.DateTo),
+			To:                                dateTo,
 			RestrictToPermanentStorageHwmDate: api.NewOptNilBool(c.Hwm),
 		},
 

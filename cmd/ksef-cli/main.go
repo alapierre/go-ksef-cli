@@ -2,9 +2,11 @@ package main
 
 import (
 	"fmt"
+	"os"
+
+	"go-ksef-cli/internal/apperrors"
 	"go-ksef-cli/internal/cli"
 	"go-ksef-cli/internal/config"
-	"os"
 
 	"github.com/alecthomas/kong"
 	"github.com/sirupsen/logrus"
@@ -36,7 +38,10 @@ func main() {
 		kong.Bind(&appCli.Config),
 	)
 
-	ctx.FatalIfErrorf(ctx.Run())
+	if err := ctx.Run(); err != nil {
+		fmt.Fprintln(os.Stderr, apperrors.Format(err))
+		os.Exit(1)
+	}
 
 	//logoutCmd := parser.NewCommand("logout", "logout from KSeF by close interactive session")
 	//sessionToken := logoutCmd.String("t", "token", &argparse.Options{Required: false, Help: "KSeF session token"})

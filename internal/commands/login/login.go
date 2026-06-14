@@ -38,7 +38,7 @@ func (c *Cmd) Run(cfg *config.Config) error {
 	if c.PrintSessionToken {
 		app.PrintTokens(ksefToken)
 	} else {
-		fmt.Printf("login successful")
+		fmt.Printf("login successful\n")
 	}
 
 	nip, ok := ksef.NipFromContext(ctx)

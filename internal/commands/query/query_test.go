@@ -130,6 +130,41 @@ func TestInvoiceMetadataCSVRecords(t *testing.T) {
 	})
 }
 
+func TestFiltersOmitDateToWhenNotProvided(t *testing.T) {
+	cmd := Cmd{
+		DateFrom:    time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC),
+		SubjectType: "Subject1",
+		DateType:    "PermanentStorage",
+		FormType:    "FA",
+	}
+
+	filters := cmd.filers()
+
+	if filters.DateRange.To.IsSet() {
+		t.Fatalf("DateRange.To should not be set when DateTo is zero")
+	}
+}
+
+func TestFiltersSetDateToWhenProvided(t *testing.T) {
+	dateTo := time.Date(2026, 6, 14, 11, 0, 0, 0, time.UTC)
+	cmd := Cmd{
+		DateFrom:    time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC),
+		DateTo:      dateTo,
+		SubjectType: "Subject1",
+		DateType:    "PermanentStorage",
+		FormType:    "FA",
+	}
+
+	filters := cmd.filers()
+	got, ok := filters.DateRange.To.Get()
+	if !ok {
+		t.Fatalf("DateRange.To should be set when DateTo is provided")
+	}
+	if !got.Equal(dateTo) {
+		t.Fatalf("DateRange.To = %s, want %s", got, dateTo)
+	}
+}
+
 func assertRecordEqual(t *testing.T, got, want []string) {
 	t.Helper()
 
