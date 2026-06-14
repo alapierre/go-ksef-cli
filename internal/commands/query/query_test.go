@@ -5,10 +5,12 @@ import (
 	"time"
 
 	"github.com/alapierre/go-ksef-client/ksef/api"
+
+	"go-ksef-cli/pkg/invoicereport"
 )
 
 func TestInvoiceMetadataCSVRecords(t *testing.T) {
-	records := invoiceMetadataCSVRecords(&api.QueryInvoicesMetadataResponse{
+	records := invoicereport.InvoiceMetadataCSVRecords(&api.QueryInvoicesMetadataResponse{
 		Invoices: []api.InvoiceMetadata{
 			{
 				KsefNumber:           api.KsefNumber("123456789012345678901234567890123456"),

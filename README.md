@@ -1,7 +1,7 @@
 # go-ksef-cli
 
 `go-ksef-cli` is a command-line client for working with KSeF from a terminal. It can initialize local encrypted token storage,
-store a KSeF authorisation token, log in, send XML invoices, query invoice metadata, export query results to CSV, and export invoices to ZIP packages.
+store a KSeF authorisation token, log in, send XML invoices, query invoice metadata, export query results to CSV, export invoices to ZIP packages, and create CSV reports from exported ZIP packages.
 
 ## Installation
 
@@ -313,6 +313,28 @@ Invoice export flags:
 | `--poll-interval`     |                      | `5s`               | Invoice export status polling interval.                                        |
 | `--wait-timeout`      |                      | `30m`              | Maximum time to wait for export package. Use `0` for no timeout.               |
 | `--request-timeout`   |                      | `10m`              | HTTP request timeout used by export operations.                                |
+
+### `report invoices`
+
+Creates CSV files from an invoice export ZIP package. The ZIP package should contain invoice XML files and `_metadata.json` in the root directory.
+
+```shell
+ksef-cli report invoices ksef-invoices-export.zip ./report
+```
+
+The command writes two files by default:
+
+| File               | Description                                                                 |
+|--------------------|-----------------------------------------------------------------------------|
+| `invoices.csv`     | Invoice metadata in the same CSV layout as `query --export`.                |
+| `invoice_rows.csv` | Invoice line items from `FaWiersz`, linked to metadata by `ksef_number`.     |
+
+Report flags:
+
+| Flag             | Default            | Description                     |
+|------------------|--------------------|---------------------------------|
+| `--invoices-csv` | `invoices.csv`     | Invoice metadata CSV file name. |
+| `--rows-csv`     | `invoice_rows.csv` | Invoice rows CSV file name.     |
 
 ### `version`
 

@@ -6,6 +6,7 @@ import (
 	"go-ksef-cli/internal/commands/login"
 	"go-ksef-cli/internal/commands/printcmd"
 	"go-ksef-cli/internal/commands/query"
+	"go-ksef-cli/internal/commands/report"
 	"go-ksef-cli/internal/commands/send"
 	"go-ksef-cli/internal/commands/session"
 	"go-ksef-cli/internal/commands/store"
@@ -22,6 +23,7 @@ type CLI struct {
 	Print   printcmd.Cmd `cmd:"print" help:"Print stored KSeF session tokens'"`
 	Send    send.Cmd     `cmd:"send" help:"Send XML Invoice files to KSeF'"`
 	Query   query.Cmd    `cmd:"query" help:"Query invoices form KSeF"`
+	Report  report.Cmd   `cmd:"report" help:"Create CSV reports from exported data"`
 	Session session.Cmd  `cmd:"session" help:"Manage KSeF session"`
 	Invoice invoice.Cmd  `cmd:"invoice" help:"Manage invoices"`
 	Version version.Cmd  `cmd:"version" help:"Print CLI version"`
