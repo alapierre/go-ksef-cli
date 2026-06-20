@@ -17,11 +17,10 @@ What you can do with it:
 | Invoice lookup     | Query invoice metadata by date range, subject type, date type, pagination, and sorting.                                                                     |
 | Data export        | Export query results to CSV, download KSeF invoice export ZIP packages, and create CSV reports from exported ZIP files.                                     |
 | Reporting          | Turn an export ZIP into `invoices.csv` and `invoice_rows.csv`, with invoice line items linked back to invoice metadata by `ksef_number`.                    |
+| QR                 | Generate KSeF QR Code II verification links and QR images (`png` or `bmp`) using a certificate and private key.                                             |
 
 Tokens are stored encrypted on disk. The encryption key is kept in the selected keystore, with the default `desktop` keystore using the operating system keyring.
 This makes regular use more convenient while avoiding plain-text token files in project directories or shell history.
-
-Planned development includes support for KSeF certificates, so the tool can cover more authentication and signing scenarios as the KSeF ecosystem evolves.
 
 ## Installation
 
@@ -178,6 +177,61 @@ Flags:
 | Flag                 | Required | Description                                   |
 |----------------------|----------|-----------------------------------------------|
 | `-i`, `--identifier` | Yes      | Context identifier, usually the taxpayer NIP. |
+
+### `qr certificate`
+
+Generates KSeF QR Code II certificate verification link and writes a QR image file.
+
+The command:
+- Reads a certificate and encrypted private key.
+- Uses `KSEF_KEY_PASSWORD` from environment or asks for the password interactively.
+- Builds a signed verification URL for KSeF (`CtxNip` context type).
+- Saves a QR image as `<context-nip>_qr2.png` or `<context-nip>_qr2.bmp`.
+
+Basic usage:
+
+```shell
+ksef-cli --env TEST qr certificate \
+  --cert ./auth-cert.pem \
+  --key ./auth-key.pem \
+  --context-nip 1234567890
+```
+
+or with real Invoice data:
+
+```shell
+ksef-cli --env TEST qr certificate \
+  --cert ./auth-cert.pem \
+  --key ./auth-key.pem \
+  --context-nip 1234567890 \
+  --in ./invoice.xml
+```
+
+Read content to sign from stdin and save as BMP:
+
+```shell
+cat ./invoice.xml | ksef-cli --env TEST qr certificate \
+  --cert ./auth-cert.pem \
+  --key ./auth-key.pem \
+  --context-nip 1234567890 \
+  --in - \
+  --format bmp
+```
+
+Command aliases: `ksef-cli qr cert`, `ksef-cli qr qr2`
+
+Flags:
+
+| Flag                  | Default | Description                                                    |
+|-----------------------|---------|----------------------------------------------------------------|
+| `-c`, `--cert`        |         | Required. KSeF certificate file.                               |
+| `-k`, `--key`         |         | Required. Private key file.                                    |
+| `-n`, `--context-nip` |         | Required. Invoice issuer NIP (KSeF context).                   |
+| `-s`, `--seller-nip`  |         | Seller NIP, if different from the invoice issuer NIP.          |
+| `-o`, `--out`         | `.`     | Base output path for QR code file.                             |
+| `-r`, `--redirect`    |         | Optional file path for appending generated verification links. |
+| `-f`, `--format`      | `png`   | Output image format: `png` or `bmp`.                           |
+| `-i`, `--in`          |         | Optional file to hash and sign; use `-` to read from stdin.    |
 
 ### `send online`
 

@@ -10,7 +10,9 @@ require (
 	github.com/cheggaaa/pb/v3 v3.1.7
 	github.com/jedib0t/go-pretty/v6 v6.8.1
 	github.com/sirupsen/logrus v1.9.4
+	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e
 	github.com/zalando/go-keyring v0.2.8
+	golang.org/x/image v0.43.0
 )
 
 require (
@@ -37,6 +39,7 @@ require (
 	golang.org/x/net v0.56.0 // indirect
 	golang.org/x/sync v0.21.0 // indirect
 	golang.org/x/sys v0.46.0 // indirect
+	golang.org/x/term v0.44.0 // indirect
 	golang.org/x/text v0.38.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
