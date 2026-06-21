@@ -11,7 +11,8 @@ What you can do with it:
 
 | Area               | Capabilities                                                                                                                                                |
 |--------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| Authentication     | Initialize encrypted local storage, store KSeF authorisation tokens, log in, reuse session tokens automatically, and log out.                                  |
+| Authentication     | Initialize encrypted local storage, store KSeF authorisation tokens, log in, reuse session tokens automatically, and log out.                               |
+| Backup             | Export and import encrypted token backups for migration to another machine.                                                                                 |
 | Multi-context work | Work with multiple taxpayer contexts by NIP. Stored tokens are scoped by KSeF environment and identifier, so `TEST`, `DEMO`, and `PROD` data stay separate. |
 | Invoice sending    | Send XML invoice files online or as a batch, including processing directories with invoice XML files.                                                       |
 | Invoice lookup     | Query invoice metadata by date range, subject type, date type, pagination, and sorting.                                                                     |
@@ -44,14 +45,14 @@ All options are passed as command-line flags or environment variables. Global op
 Example:
 
 ```shell
-ksef-cli --env DEMO query --identifier 1234567890 --date-from 2026-06-01T00:00:00
+ksef-cli --env DEMO query --identifier 1234567890 --date-from 2026-06-01T00:00:00Z
 ```
 
 The same environment can be selected with an environment variable:
 
 ```shell
 export KSEF_ENVIRONMENT=DEMO
-ksef-cli query --identifier 1234567890 --date-from 2026-06-01T00:00:00
+ksef-cli query --identifier 1234567890 --date-from 2026-06-01T00:00:00Z
 ```
 
 ## KSeF authorisation token handling
@@ -62,7 +63,7 @@ Commands that need a KSeF authorisation token accept it with `--token` / `-t` or
 ksef-cli query \
   --identifier 1234567890 \
   --token "__ksef_authorisation_token__" \
-  --date-from 2026-06-01T00:00:00
+  --date-from 2026-06-01T00:00:00Z
 ```
 
 For regular use, store the authorisation token once and run `login` once.  
@@ -134,6 +135,60 @@ Flags:
 |----------------------|----------------------|----------|-----------------------------------------------|
 | `-i`, `--identifier` |                      | Yes      | Context identifier, usually the taxpayer NIP. |
 | `-t`, `--token`      | `KSEF_TOKEN`         | Yes      | KSeF authorisation token to store.            |
+
+### `tokens export`
+
+Exports stored tokens to an encrypted backup file protected with a password.
+
+By default, exports only for the current `--env`. Use `--all` to include all environments.
+
+Security note:
+- Use a strong backup password (long, unique, not reused).
+- Protect the backup file like credentials (restricted filesystem access, encrypted disk).
+- Do not commit backup files to Git repositories or send them over insecure channels.
+
+```shell
+ksef-cli --env TEST tokens export ./ksef-token-backup.json
+```
+
+Export all environments:
+
+```shell
+ksef-cli tokens export ./ksef-token-backup.json --all
+```
+
+Export a single identifier:
+
+```shell
+ksef-cli --env TEST tokens export ./ksef-token-backup.json --identifier 1234567890
+```
+
+Flags:
+
+| Flag                 | Environment variable     | Description                                                |
+|----------------------|--------------------------|------------------------------------------------------------|
+| `-i`, `--identifier` |                          | Export only this identifier (NIP).                         |
+| `--all`              |                          | Export tokens from all environments.                       |
+| `-p`, `--password`   | `KSEF_BACKUP_PASSWORD`   | Backup password. If omitted, CLI prompts securely.         |
+
+### `tokens import`
+
+Imports tokens from an encrypted backup file created by `tokens export`.
+
+Requires initialized local encryption key (`ksef-cli init`).
+
+Security note:
+- After migration, securely delete temporary backup copies from source and target machines.
+
+```shell
+ksef-cli tokens import ./ksef-token-backup.json
+```
+
+Flags:
+
+| Flag               | Environment variable   | Description                                        |
+|--------------------|------------------------|----------------------------------------------------|
+| `-p`, `--password` | `KSEF_BACKUP_PASSWORD` | Backup password. If omitted, CLI prompts securely. |
 
 ### `login`
 
@@ -370,7 +425,7 @@ Flags:
 | `-i`, `--identifier` |                      | Context identifier, usually the taxpayer NIP.                           |
 | `-t`, `--token`      | `KSEF_TOKEN`         | KSeF authorisation token.                                               |
 | `-r`, `--recursive`  |                      | Process directory arguments recursively.                                |
-| `--output-dir`       |                      | Directory for temporary batch files. Defaults to the system temp dir.    |
+| `--output-dir`       |                      | Directory for temporary batch files. Defaults to the system temp dir.   |
 | `--max-part-size`    |                      | Maximum plain ZIP part size in bytes before encryption. Default: 100MB. |
 | `--keep-files`       |                      | Keep generated ZIP and encrypted part files after sending.              |
 
@@ -385,7 +440,7 @@ Basic query:
 ```shell
 ksef-cli --env TEST query \
   --identifier 1234567890 \
-  --date-from 2026-06-01T00:00:00
+  --date-from 2026-06-01T00:00:00Z
 ```
 
 Query a date range:
@@ -393,8 +448,8 @@ Query a date range:
 ```shell
 ksef-cli --env TEST query \
   --identifier 1234567890 \
-  --date-from 2026-06-01T00:00:00 \
-  --date-to 2026-06-30T23:59:59
+  --date-from 2026-06-01T00:00:00Z \
+  --date-to 2026-06-30T23:59:59Z
 ```
 
 Query buyer-side invoices and sort newest first:
@@ -404,7 +459,7 @@ ksef-cli --env TEST query \
   --identifier 1234567890 \
   --subject-type Subject2 \
   --sort-order Desc \
-  --date-from 2026-06-01T00:00:00
+  --date-from 2026-06-01T00:00:00Z
 ```
 
 Limit page size and read the next page:
@@ -412,7 +467,7 @@ Limit page size and read the next page:
 ```shell
 ksef-cli --env TEST query \
   --identifier 1234567890 \
-  --date-from 2026-06-01T00:00:00 \
+  --date-from 2026-06-01T00:00:00Z \
   --page-size 100 \
   --page-offset 100
 ```
@@ -424,8 +479,8 @@ Use `--export FILE` to write invoice metadata to a CSV file. The command still p
 ```shell
 ksef-cli --env TEST query \
   --identifier 1234567890 \
-  --date-from 2026-06-01T00:00:00 \
-  --date-to 2026-06-30T23:59:59 \
+  --date-from 2026-06-01T00:00:00Z \
+  --date-to 2026-06-30T23:59:59Z \
   --export invoices-june-2026.csv
 ```
 
@@ -435,21 +490,21 @@ The CSV export contains richer metadata than the terminal table.
 
 Query flags:
 
-| Flag                  | Environment variable | Default            | Description                                                                    |
-|-----------------------|----------------------|--------------------|--------------------------------------------------------------------------------|
-| `-i`, `--identifier`  |                      |                    | Required. Context identifier, usually the taxpayer NIP.                        |
-| `-t`, `--token`       | `KSEF_TOKEN`         |                    | KSeF authorisation token. If omitted, the stored encrypted token is used.      |
-| `-f`, `--date-from`   |                      |                    | Required. Start of date range, for example `2026-06-01T00:00:00`.              |
-| `--date-to`           |                      | KSeF current UTC   | End of date range, for example `2026-06-30T23:59:59`. When omitted, the field is not sent and KSeF applies its default. |
-| `--date-type`         |                      | `PermanentStorage` | Date filter type: `Issue`, `Invoicing`, or `PermanentStorage`.                 |
-| `--subject-type`      |                      | `Subject1`         | KSeF subject type: `Subject1`, `Subject2`, `Subject3`, or `SubjectAuthorized`. |
-| `-s`, `--sort-order`  |                      | `Asc`              | Sort order: `Asc` or `Desc`.                                                   |
-| `-o`, `--page-offset` |                      | `0`                | Page offset.                                                                   |
-| `-p`, `--page-size`   |                      | `250`              | Page size. KSeF supports up to `250`.                                          |
-| `--hwm`               |                      | `false`            | Restrict to permanent storage high water mark date.                            |
-| `--self-invoicing`    |                      | `false`            | Include self-invoicing filter.                                                 |
-| `--form-type`         |                      | `FA`               | Schema form type: `FA`, `PEF`, or `FA_RR`.                                     |
-| `--export`            |                      |                    | Path to CSV export file.                                                       |
+| Flag                  | Environment variable | Default            | Description                                                                                                             |
+|-----------------------|----------------------|--------------------|-------------------------------------------------------------------------------------------------------------------------|
+| `-i`, `--identifier`  |                      |                    | Required. Context identifier, usually the taxpayer NIP.                                                                 |
+| `-t`, `--token`       | `KSEF_TOKEN`         |                    | KSeF authorisation token. If omitted, the stored encrypted token is used.                                               |
+| `-f`, `--date-from`   |                      |                    | Required. Start of date range, for example `2026-06-01T00:00:00Z`.                                                       |
+| `--date-to`           |                      | KSeF current UTC   | End of date range, for example `2026-06-30T23:59:59Z`. When omitted, the field is not sent and KSeF applies its default. |
+| `--date-type`         |                      | `PermanentStorage` | Date filter type: `Issue`, `Invoicing`, or `PermanentStorage`.                                                          |
+| `--subject-type`      |                      | `Subject1`         | KSeF subject type: `Subject1`, `Subject2`, `Subject3`, or `SubjectAuthorized`.                                          |
+| `-s`, `--sort-order`  |                      | `Asc`              | Sort order: `Asc` or `Desc`.                                                                                            |
+| `-o`, `--page-offset` |                      | `0`                | Page offset.                                                                                                            |
+| `-p`, `--page-size`   |                      | `250`              | Page size. KSeF supports up to `250`.                                                                                   |
+| `--hwm`               |                      | `false`            | Restrict to permanent storage high water mark date.                                                                     |
+| `--self-invoicing`    |                      | `false`            | Include self-invoicing filter.                                                                                          |
+| `--form-type`         |                      | `FA`               | Schema form type: `FA`, `PEF`, or `FA_RR`.                                                                              |
+| `--export`            |                      |                    | Path to CSV export file.                                                                                                |
 
 ### `invoice export`
 
@@ -458,8 +513,8 @@ Starts a KSeF invoice export, waits until the package is ready, downloads it, de
 ```shell
 ksef-cli --env TEST invoice export \
   --identifier 1234567890 \
-  --date-from 2026-06-01T00:00:00 \
-  --date-to 2026-06-30T23:59:59 \
+  --date-from 2026-06-01T00:00:00Z \
+  --date-to 2026-06-30T23:59:59Z \
   ksef-invoices-export.zip
 ```
 
@@ -469,7 +524,7 @@ Export buyer-side invoices:
 ksef-cli --env TEST invoice export \
   --identifier 1234567890 \
   --subject-type Subject2 \
-  --date-from 2026-06-01T00:00:00 \
+  --date-from 2026-06-01T00:00:00Z \
   invoices.zip
 ```
 
@@ -479,8 +534,8 @@ Invoice export flags:
 |-----------------------|----------------------|--------------------|--------------------------------------------------------------------------------|
 | `-i`, `--identifier`  |                      |                    | Required. Context identifier, usually the taxpayer NIP.                        |
 | `-t`, `--token`       | `KSEF_TOKEN`         |                    | KSeF authorisation token. If omitted, the stored encrypted token is used.      |
-| `-f`, `--date-from`   |                      |                    | Required. Start of date range, for example `2026-06-01T00:00:00`.              |
-| `--date-to`           |                      | Current UTC time   | End of date range, for example `2026-06-30T23:59:59`.                          |
+| `-f`, `--date-from`   |                      |                    | Required. Start of date range, for example `2026-06-01T00:00:00Z`.              |
+| `--date-to`           |                      | Current UTC time   | End of date range, for example `2026-06-30T23:59:59Z`.                          |
 | `--date-type`         |                      | `PermanentStorage` | Date filter type: `Issue`, `Invoicing`, or `PermanentStorage`.                 |
 | `--subject-type`      |                      | `Subject1`         | KSeF subject type: `Subject1`, `Subject2`, `Subject3`, or `SubjectAuthorized`. |
 | `--hwm`               |                      | `false`            | Restrict to permanent storage high water mark date.                            |
@@ -501,10 +556,10 @@ ksef-cli report invoices ksef-invoices-export.zip ./report
 
 The command writes two files by default:
 
-| File               | Description                                                                 |
-|--------------------|-----------------------------------------------------------------------------|
-| `invoices.csv`     | Invoice metadata in the same CSV layout as `query --export`.                |
-| `invoice_rows.csv` | Invoice line items from `FaWiersz`, linked to metadata by `ksef_number`.     |
+| File               | Description                                                              |
+|--------------------|--------------------------------------------------------------------------|
+| `invoices.csv`     | Invoice metadata in the same CSV layout as `query --export`.             |
+| `invoice_rows.csv` | Invoice line items from `FaWiersz`, linked to metadata by `ksef_number`. |
 
 Report flags:
 
@@ -529,7 +584,7 @@ ksef-cli version
 ksef-cli --env TEST query \
   --identifier 1234567890 \
   --token "__ksef_authorisation_token__" \
-  --date-from 2026-06-01T00:00:00 \
+  --date-from 2026-06-01T00:00:00Z \
   --export invoices.csv
 ```
 
@@ -538,7 +593,22 @@ ksef-cli --env TEST query \
 ```shell
 ksef-cli init
 ksef-cli --env TEST store --identifier 1234567890 --token "__ksef_authorisation_token__"
-ksef-cli --env TEST query --identifier 1234567890 --date-from 2026-06-01T00:00:00
+ksef-cli --env TEST query --identifier 1234567890 --date-from 2026-06-01T00:00:00Z
+```
+
+### Backup and migrate tokens to another machine
+
+On source machine:
+
+```shell
+ksef-cli tokens export ./ksef-token-backup.json --all
+```
+
+On target machine:
+
+```shell
+ksef-cli init
+ksef-cli tokens import ./ksef-token-backup.json
 ```
 
 ### Use environment variables instead of repeated flags
@@ -549,11 +619,11 @@ export KSEF_TOKEN="__ksef_authorisation_token__"
 
 ksef-cli query \
   --identifier 1234567890 \
-  --date-from 2026-06-01T00:00:00 \
+  --date-from 2026-06-01T00:00:00Z \
   --export invoices.csv
 ```
 
 ## Notes
 
 - The CLI writes logs to `ksef-cli.log` in the current working directory.
-- Date-time flags are passed as values like `2026-06-01T00:00:00`.
+- Date-time flags use RFC3339 with timezone, for example `2026-06-01T00:00:00Z` or `2026-06-01T00:00:00+02:00`.

@@ -21,6 +21,7 @@ type Cmd struct {
 
 func (c *Cmd) Run(cfg *config.Config) error {
 
+	logger.Infof("Trying to login into KSeF, identifier: %s, env: %s", c.Identifier, cfg.Env)
 	fmt.Printf("Trying to login into KSeF, identifier: %s, env: %s\n", c.Identifier, cfg.Env)
 
 	token, err := app.ResolveAuthToken(c.Token, cfg.Env, c.Identifier)
@@ -42,6 +43,7 @@ func (c *Cmd) Run(cfg *config.Config) error {
 		app.PrintTokens(ksefToken)
 	} else {
 		fmt.Printf("login successful\n")
+		logger.Info("login successful")
 	}
 
 	nip, ok := ksef.NipFromContext(ctx)

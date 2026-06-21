@@ -13,6 +13,7 @@ import (
 	"go-ksef-cli/internal/commands/session"
 	"go-ksef-cli/internal/commands/status"
 	"go-ksef-cli/internal/commands/store"
+	"go-ksef-cli/internal/commands/tokens"
 	"go-ksef-cli/internal/commands/version"
 	"go-ksef-cli/internal/config"
 )
@@ -24,6 +25,7 @@ type CLI struct {
 	Login   login.Cmd    `cmd:"login" help:"Login into KSeF using provided authorisation token and store encrypted session tokens'"`
 	Logout  logout.Cmd   `cmd:"logout" help:"Logout from KSeF and remove stored encrypted session tokens'"`
 	Store   store.Cmd    `cmd:"store" help:"Encrypt and store KSeF authorisation token'"`
+	Tokens  tokens.Cmd   `cmd:"tokens" help:"Export or import encrypted token backups"`
 	Print   printcmd.Cmd `cmd:"print" help:"Print stored KSeF session tokens'"`
 	QR      qr.Cmd       `cmd:"qr" help:"Generate KSeF QR codes"`
 	Send    send.Cmd     `cmd:"send" help:"Send XML Invoice files to KSeF'"`

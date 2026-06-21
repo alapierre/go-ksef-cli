@@ -19,8 +19,8 @@ type ExportCmd struct {
 	Token          string        `short:"t" env:"KSEF_TOKEN" optional:"" help:"KSeF authorisation token, if not provided it will be loaded from keystore (it should be stored first)"`
 	Identifier     string        `short:"i" required:"" help:"context identifier (NIP)"`
 	SubjectType    string        `enum:"Subject1,Subject2,Subject3,SubjectAuthorized" default:"Subject1" help:"KSeF Subject type"`
-	DateFrom       time.Time     `short:"f" required:"" help:"date from (yyyy-MM-ddTHH:mm:ss)"`
-	DateTo         time.Time     `optional:"" help:"date to (yyyy-MM-ddTHH:mm:ss), default is now in UTC"`
+	DateFrom       time.Time     `short:"f" required:"" help:"date from (RFC3339, e.g. 2026-06-01T00:00:00Z or 2026-06-01T00:00:00+02:00)"`
+	DateTo         time.Time     `optional:"" help:"date to (RFC3339, e.g. 2026-06-30T23:59:59Z), default is now in UTC"`
 	DateType       string        `enum:"Issue,Invoicing,PermanentStorage" default:"PermanentStorage" help:"Date type (Issue|Invoicing|PermanentStorage)"`
 	Hwm            bool          `default:"false" help:"restrict to permanent storage high water mark date"`
 	SelfInvoicing  bool          `help:"restrict to self-invoicing invoices"`
