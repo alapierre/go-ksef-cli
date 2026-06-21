@@ -28,7 +28,10 @@ func (c *Cmd) Run(cfg *config.Config) error {
 		return err
 	}
 
-	appContext := app.New(token, cfg.Env)
+	appContext, err := app.New(token, cfg.Env, c.Identifier, app.WithSessionPersistence(app.SessionPersistDisabled))
+	if err != nil {
+		return err
+	}
 	ctx := ksef.ContextWithEnv(context.Background(), c.Identifier, appContext.Env)
 	ksefToken, err := ksef.WithKsefToken(ctx, appContext.AuthFacade, appContext.Encryptor, token)
 	if err != nil {
@@ -43,16 +46,18 @@ func (c *Cmd) Run(cfg *config.Config) error {
 
 	nip, ok := ksef.NipFromContext(ctx)
 	if !ok {
-		logger.Fatal("No NIP in context")
+		return fmt.Errorf("internal error: no NIP in context")
 	}
 
 	e, ok := ksef.EnvFromContext(ctx)
 	if !ok {
-		logger.Fatal("No env in context")
+		return fmt.Errorf("internal error: no env in context")
 	}
 
 	if !c.NoStore {
-		app.StoreSessionToken(ksefToken, e.Name(), nip)
+		if err := app.StoreSessionTokenWithError(ksefToken, e.Name(), nip); err != nil {
+			return err
+		}
 	}
 
 	return nil

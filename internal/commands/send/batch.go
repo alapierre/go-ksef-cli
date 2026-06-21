@@ -32,16 +32,14 @@ func (c *BatchCmd) Run(cfg *config.Config) error {
 		return err
 	}
 
-	token, err := app.ResolveAuthToken(c.Token, cfg.Env, c.Identifier)
-	if err != nil {
-		return err
-	}
-
 	if c.MaxPartSize <= 0 {
 		c.MaxPartSize = defaultBatchMaxPartSize
 	}
 
-	appCtx := app.New(token, cfg.Env)
+	appCtx, err := app.New(c.Token, cfg.Env, c.Identifier)
+	if err != nil {
+		return err
+	}
 	ctx := ksef.ContextWithEnv(context.Background(), c.Identifier, appCtx.Env)
 
 	result, err := batch.BuildBatchFromSource(batch.BatchConfig{

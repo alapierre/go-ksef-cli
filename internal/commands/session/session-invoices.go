@@ -31,12 +31,10 @@ type CmdSessionInvoices struct {
 
 func (c *CmdSessionInvoices) Run(cfg *config.Config) error {
 
-	token, err := app.ResolveAuthToken(c.Token, cfg.Env, c.Identifier)
+	appCtx, err := app.New(c.Token, cfg.Env, c.Identifier)
 	if err != nil {
 		return err
 	}
-
-	appCtx := app.New(token, cfg.Env)
 	ctx := ksef.ContextWithEnv(context.Background(), c.Identifier, appCtx.Env)
 
 	continuationToken := api.OptString{}

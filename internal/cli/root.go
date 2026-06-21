@@ -4,12 +4,14 @@ import (
 	"go-ksef-cli/internal/commands/initcmd"
 	"go-ksef-cli/internal/commands/invoice"
 	"go-ksef-cli/internal/commands/login"
+	"go-ksef-cli/internal/commands/logout"
 	"go-ksef-cli/internal/commands/printcmd"
 	"go-ksef-cli/internal/commands/qr"
 	"go-ksef-cli/internal/commands/query"
 	"go-ksef-cli/internal/commands/report"
 	"go-ksef-cli/internal/commands/send"
 	"go-ksef-cli/internal/commands/session"
+	"go-ksef-cli/internal/commands/status"
 	"go-ksef-cli/internal/commands/store"
 	"go-ksef-cli/internal/commands/version"
 	"go-ksef-cli/internal/config"
@@ -20,12 +22,14 @@ type CLI struct {
 
 	Init    initcmd.Cmd  `cmd:"init" help:"Initialize encryption key and save it in keystore selected in configuration'"`
 	Login   login.Cmd    `cmd:"login" help:"Login into KSeF using provided authorisation token and store encrypted session tokens'"`
+	Logout  logout.Cmd   `cmd:"logout" help:"Logout from KSeF and remove stored encrypted session tokens'"`
 	Store   store.Cmd    `cmd:"store" help:"Encrypt and store KSeF authorisation token'"`
 	Print   printcmd.Cmd `cmd:"print" help:"Print stored KSeF session tokens'"`
 	QR      qr.Cmd       `cmd:"qr" help:"Generate KSeF QR codes"`
 	Send    send.Cmd     `cmd:"send" help:"Send XML Invoice files to KSeF'"`
 	Query   query.Cmd    `cmd:"query" help:"Query invoices form KSeF"`
 	Report  report.Cmd   `cmd:"report" help:"Create CSV reports from exported data"`
+	Status  status.Cmd   `cmd:"status" help:"Show stored KSeF token status by identifier"`
 	Session session.Cmd  `cmd:"session" help:"Manage KSeF session"`
 	Invoice invoice.Cmd  `cmd:"invoice" help:"Manage invoices"`
 	Version version.Cmd  `cmd:"version" help:"Print CLI version"`

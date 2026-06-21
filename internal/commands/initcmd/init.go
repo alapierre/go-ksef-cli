@@ -11,7 +11,7 @@ type Cmd struct {
 
 func (c *Cmd) Run() error {
 
-	if c.ForceInit || app.CheckIsEncKeyInitialized() {
+	if !c.ForceInit && app.CheckIsEncKeyInitialized() {
 		return fmt.Errorf("encryption key is already stored in keystore")
 	}
 	err := app.InitEncryption()

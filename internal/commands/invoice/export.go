@@ -39,12 +39,10 @@ func (c *ExportCmd) Run(cfg *config.Config) error {
 		return fmt.Errorf("request timeout must be greater than 0")
 	}
 
-	token, err := app.ResolveAuthToken(c.Token, cfg.Env, c.Identifier)
+	appCtx, err := app.New(c.Token, cfg.Env, c.Identifier, app.WithTimeout(c.RequestTimeout))
 	if err != nil {
 		return err
 	}
-
-	appCtx := app.NewWithHTTPTimeout(token, cfg.Env, c.RequestTimeout)
 	ctx := ksef.ContextWithEnv(context.Background(), c.Identifier, appCtx.Env)
 
 	onlyMetadata := api.OptBool{}

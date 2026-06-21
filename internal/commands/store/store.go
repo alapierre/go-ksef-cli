@@ -12,7 +12,9 @@ type Cmd struct {
 }
 
 func (c *Cmd) Run(cfg *config.Config) error {
-	app.StoreAuthToken([]byte(c.Token), cfg.Env, c.Identifier)
+	if err := app.StoreAuthToken([]byte(c.Token), cfg.Env, c.Identifier); err != nil {
+		return fmt.Errorf("cannot store KSeF authorisation token: %w", err)
+	}
 	fmt.Printf("Token for identifier %s and environment: %s stored successfully\n", c.Identifier, cfg.Env)
 	return nil
 }

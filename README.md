@@ -11,7 +11,7 @@ What you can do with it:
 
 | Area               | Capabilities                                                                                                                                                |
 |--------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| Authentication     | Initialize encrypted local storage, store KSeF authorisation tokens, log in, and reuse stored tokens without passing them on every command.                 |
+| Authentication     | Initialize encrypted local storage, store KSeF authorisation tokens, log in, reuse session tokens automatically, and log out.                                  |
 | Multi-context work | Work with multiple taxpayer contexts by NIP. Stored tokens are scoped by KSeF environment and identifier, so `TEST`, `DEMO`, and `PROD` data stay separate. |
 | Invoice sending    | Send XML invoice files online or as a batch, including processing directories with invoice XML files.                                                       |
 | Invoice lookup     | Query invoice metadata by date range, subject type, date type, pagination, and sorting.                                                                     |
@@ -65,7 +65,11 @@ ksef-cli query \
   --date-from 2026-06-01T00:00:00
 ```
 
-For regular use, you can store the authorisation token locally in encrypted form and then omit `--token` from commands that load the stored token.
+For regular use, store the authorisation token once and run `login` once.  
+After that, operational commands automatically try the stored session token pair first.  
+If the pair is missing or expired, the CLI falls back to full authentication using:
+1. `--token` / `KSEF_TOKEN`, then
+2. stored encrypted authorisation token from `store`.
 
 Token storage must be initialized first:
 
@@ -177,6 +181,51 @@ Flags:
 | Flag                 | Required | Description                                   |
 |----------------------|----------|-----------------------------------------------|
 | `-i`, `--identifier` | Yes      | Context identifier, usually the taxpayer NIP. |
+
+### `logout`
+
+Logs out from KSeF and removes the stored encrypted session token pair for the selected NIP and environment.
+
+```shell
+ksef-cli --env TEST logout --identifier 1234567890
+```
+
+With an explicit token for full-auth fallback:
+
+```shell
+ksef-cli --env TEST logout \
+  --identifier 1234567890 \
+  --token "__ksef_authorisation_token__"
+```
+
+Flags:
+
+| Flag                 | Environment variable | Description                                                               |
+|----------------------|----------------------|---------------------------------------------------------------------------|
+| `-i`, `--identifier` |                      | Context identifier, usually the taxpayer NIP.                             |
+| `-t`, `--token`      | `KSEF_TOKEN`         | KSeF authorisation token. If omitted, the stored encrypted token is used. |
+
+### `status`
+
+Shows, per identifier, which encrypted tokens are stored locally and whether the stored session tokens are still valid.
+
+By default it shows only the environment selected with `--env`.
+
+```shell
+ksef-cli --env TEST status
+```
+
+Show all environments:
+
+```shell
+ksef-cli status --all
+```
+
+Flags:
+
+| Flag    | Description                                 |
+|---------|---------------------------------------------|
+| `--all` | Show token status for all stored environments. |
 
 ### `qr certificate`
 
@@ -329,7 +378,7 @@ Flags:
 
 Queries invoice metadata from KSeF. This command is useful for listing received or issued invoices and for exporting invoice metadata to CSV.
 
-`--identifier` and `--date-from` are required. If `--token` is omitted, the CLI tries to load the encrypted authorisation token stored with `store`.
+`--identifier` and `--date-from` are required.
 
 Basic query:
 
@@ -508,4 +557,3 @@ ksef-cli query \
 
 - The CLI writes logs to `ksef-cli.log` in the current working directory.
 - Date-time flags are passed as values like `2026-06-01T00:00:00`.
-- `status` and `logout` are not available commands in this version.
