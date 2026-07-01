@@ -5,3 +5,4 @@
 /ksef-cli.log
 /private.env
 /cmd/ksef-cli/out.csv
+/dist/

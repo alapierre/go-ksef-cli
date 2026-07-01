@@ -1,0 +1,108 @@
+version: 2
+
+project_name: ksef-cli
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+      - "^ci:"
+      - "^build:"
+      - "^refactor:"
+      - "^style:"
+      - "^Merge pull request"
+      - "^Merge branch"
+  groups:
+    - title: Features
+      regexp: "^feat(\\(.+\\))?:"
+      order: 0
+    - title: Fixes
+      regexp: "^fix(\\(.+\\))?:"
+      order: 1
+    - title: Maintenance
+      regexp: ".*"
+      order: 999
+
+before:
+  hooks:
+    - go test ./...
+
+builds:
+  - id: ksef-cli
+    main: ./cmd/ksef-cli
+    binary: ksef-cli
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - windows
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    ignore:
+      - goos: windows
+        goarch: arm64
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w -X go-ksef-cli/internal/commands/version.Version={{ .Version }}
+
+archives:
+  - id: binaries
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    formats:
+      - tar.gz
+    format_overrides:
+      - goos: windows
+        formats:
+          - zip
+
+checksum:
+  name_template: checksums.txt
+
+nfpms:
+  - id: linux-packages
+    package_name: ksef-cli
+    file_name_template: "{{ .PackageName }}_{{ .Version }}_{{ .Arch }}"
+    section: utils
+    priority: optional
+    vendor: Adrian Lapierre
+    homepage: https://github.com/alapierre/go-ksef-cli
+    maintainer: Adrian Lapierre <al@alapierre.io>
+    description: Command-line client for KSeF
+    license: Apache License 2.0
+    dependencies:
+      - ca-certificates
+    recommends:
+      - tzdata
+    contents:
+      - src: ./README.md
+        dst: /usr/share/doc/ksef-cli/README.md
+      - src: ./LICENCE
+        dst: /usr/share/doc/ksef-cli/copyright
+    rpm:
+      summary: Command-line client for KSeF
+      group: Applications/System
+    deb:
+      fields:
+        Bugs: https://github.com/alapierre/go-ksef-cli/issues
+    formats:
+      - deb
+      - rpm
+    bindir: /usr/bin
+    ids:
+      - ksef-cli
+
+scoops:
+  - name: ksef-cli
+    ids:
+      - binaries
+    url_template: "https://github.com/alapierre/go-ksef-cli/releases/download/{{ .Tag }}/{{ .ArtifactName }}"
+    description: Command-line client for KSeF
+    homepage: https://github.com/alapierre/go-ksef-cli
+    license: Apache License 2.0
+    skip_upload: true
