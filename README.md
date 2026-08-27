@@ -215,6 +215,7 @@ Flags:
 | `-i`, `--identifier`          |                            | Context identifier, usually the taxpayer NIP.                             |
 | `-t`, `--token`               | `KSEF_TOKEN`               | KSeF authorisation token. If omitted, the stored encrypted token is used. |
 | `-p`, `--print-session-token` | `KSEF_PRINT_SESSION_TOKEN` | Print the returned session tokens.                                        |
+| `-r`, `--raw`                 | `KSEF_RAW`                 | Print only raw access token to stdout without formatting.                 |
 | `-n`, `--no-store`            |                            | Do not store returned session tokens.                                     |
 
 Encrypted session token files are stored under:

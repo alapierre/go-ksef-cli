@@ -16,13 +16,16 @@ type Cmd struct {
 	Identifier        string `short:"i" help:"context identifier (NIP)"`
 	Token             string `short:"t" env:"KSEF_TOKEN" optional:"" help:"KSeF authorisation token, if not provided it will be loaded from keystore (it should be stored first)"`
 	PrintSessionToken bool   `short:"p" env:"KSEF_PRINT_SESSION_TOKEN" help:"print session token"`
+	Raw               bool   `short:"r" env:"KSEF_RAW" help:"print only raw access token to stdout without formatting"`
 	NoStore           bool   `short:"n" help:"do not store session token"`
 }
 
 func (c *Cmd) Run(cfg *config.Config) error {
 
 	logger.Infof("Trying to login into KSeF, identifier: %s, env: %s", c.Identifier, cfg.Env)
-	fmt.Printf("Trying to login into KSeF, identifier: %s, env: %s\n", c.Identifier, cfg.Env)
+	if !c.Raw {
+		fmt.Printf("Trying to login into KSeF, identifier: %s, env: %s\n", c.Identifier, cfg.Env)
+	}
 
 	token, err := app.ResolveAuthToken(c.Token, cfg.Env, c.Identifier)
 	if err != nil {
@@ -39,13 +42,6 @@ func (c *Cmd) Run(cfg *config.Config) error {
 		return err
 	}
 
-	if c.PrintSessionToken {
-		app.PrintTokens(ksefToken)
-	} else {
-		fmt.Printf("login successful\n")
-		logger.Info("login successful")
-	}
-
 	nip, ok := ksef.NipFromContext(ctx)
 	if !ok {
 		return fmt.Errorf("internal error: no NIP in context")
@@ -60,6 +56,15 @@ func (c *Cmd) Run(cfg *config.Config) error {
 		if err := app.StoreSessionTokenWithError(ksefToken, e.Name(), nip); err != nil {
 			return err
 		}
+	}
+
+	if c.Raw {
+		fmt.Println(ksefToken.AccessToken.Token)
+	} else if c.PrintSessionToken {
+		app.PrintTokens(ksefToken)
+	} else {
+		fmt.Printf("login successful\n")
+		logger.Info("login successful")
 	}
 
 	return nil
