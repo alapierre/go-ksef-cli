@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/cheggaaa/pb/v3"
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/sirupsen/logrus"
 )
@@ -47,7 +46,7 @@ func (c *OnlineCmd) Run(cfg *config.Config) error {
 	errors := 0
 	results := make([]string, 0)
 
-	bar := pb.StartNew(len(xmlPaths))
+	bar := startProgress(len(xmlPaths))
 
 	for _, path := range xmlPaths {
 		if status, err := processFile(appCtx, key, iv, c.Identifier, session, path); err != nil {

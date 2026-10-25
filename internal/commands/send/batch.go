@@ -11,7 +11,6 @@ import (
 	"github.com/alapierre/go-ksef-client/ksef"
 	"github.com/alapierre/go-ksef-client/ksef/api"
 	"github.com/alapierre/go-ksef-client/ksef/batch"
-	"github.com/cheggaaa/pb/v3"
 )
 
 const defaultBatchMaxPartSize int64 = 100 * 1024 * 1024
@@ -100,7 +99,7 @@ func uploadBatchParts(ctx context.Context, appCtx *app.App, result *batch.BatchR
 		return fmt.Errorf("KSeF requested %d batch parts, but built %d", len(requests), len(result.Parts))
 	}
 
-	bar := pb.StartNew(len(requests))
+	bar := startProgress(len(requests))
 	defer bar.Finish()
 
 	for _, request := range requests {

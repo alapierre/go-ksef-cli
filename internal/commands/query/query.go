@@ -58,7 +58,7 @@ func (c *Cmd) Run(cfg *config.Config) error {
 func (c *Cmd) params() *api.InvoicesQueryMetadataPostParams {
 
 	params := api.InvoicesQueryMetadataPostParams{
-		SortOrder:  api.NewOptSortOrder(api.SortOrder(c.SortOrder)),
+		SortOrder:  api.NewOptInvoicesQueryMetadataPostSortOrder(api.InvoicesQueryMetadataPostSortOrder(c.SortOrder)),
 		PageOffset: api.NewOptInt32(c.PageOffset),
 		PageSize:   api.NewOptInt32(c.PageSize),
 	}

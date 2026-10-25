@@ -75,7 +75,7 @@ func New(token, env, identifier string, opts ...Option) (*App, error) {
 		a.TokenProvider.SetTokenUpdateCallback(func(ctx context.Context, update ksef.TokenUpdate) error {
 			t := &api.AuthenticationTokensResponse{
 				AccessToken:  update.AccessToken,
-				RefreshToken: update.RefreshToken,
+				RefreshToken: api.AuthenticationTokensResponseRefreshToken(update.RefreshToken),
 			}
 
 			if err := StoreSessionTokenWithError(t, env, update.NIP); err != nil {
@@ -104,7 +104,7 @@ func New(token, env, identifier string, opts ...Option) (*App, error) {
 
 	if a.sessionTokens != nil {
 		seedCtx := ksef.ContextWithEnv(context.Background(), a.identifier, a.Env)
-		err := a.TokenProvider.SeedTokens(seedCtx, a.sessionTokens.AccessToken, a.sessionTokens.RefreshToken)
+		err := a.TokenProvider.SeedTokens(seedCtx, a.sessionTokens.AccessToken, api.TokenInfo(a.sessionTokens.RefreshToken))
 		if err != nil {
 			logger.Errorf("error Seed Tokens in TokenProvider: %v", err)
 			return nil, fmt.Errorf("error seed tokens in TokenProvider %w", err)

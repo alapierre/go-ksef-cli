@@ -36,7 +36,7 @@ func TestInvoiceMetadataCSVRecords(t *testing.T) {
 				Currency:        "PLN",
 				InvoicingMode:   api.InvoicingModeOnline,
 				InvoiceType:     api.InvoiceTypeVat,
-				FormCode:        api.FormCode{SystemCode: "FA (3)", SchemaVersion: "1-0E", Value: "FA"},
+				FormCode:        api.InvoiceMetadataFormCode{SystemCode: "FA (3)", SchemaVersion: "1-0E", Value: "FA"},
 				IsSelfInvoicing: true,
 				HasAttachment:   true,
 				InvoiceHash:     api.Sha256HashBase64{1, 2, 3},
