@@ -214,36 +214,51 @@ func StoreAuthToken(token []byte, env, nip string) error {
 	return storeToken(token, fileName, env, nip)
 }
 
-func LoadAuthToken(env, nip string) (string, error) {
+// NewAuthTokenFileEncryptor prepares the existing keystore key before a one-time
+// KSeF token is issued. The ciphertext uses the same format as StoreAuthToken.
+func NewAuthTokenFileEncryptor(env, nip string) (func([]byte) ([]byte, error), error) {
+	key, err := loadEncryptionKey()
+	if errors.Is(err, ErrEncryptionKeyNotInitialized) {
+		return nil, fmt.Errorf("run ksef-cli init before generating an encrypted token file: %w", err)
+	}
+	if err != nil {
+		return nil, err
+	}
+	if len(key) != 32 {
+		return nil, ErrInvalidEncryptionKey
+	}
+	aad := buildAAD(env, nip)
+	return func(token []byte) ([]byte, error) { return encryptAESGCM(key, token, aad) }, nil
+}
 
+func LoadAuthToken(env, nip string) (string, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
-		logger.Error("cannot load home directory", err)
 		return "", err
 	}
-
-	fileName := fmt.Sprintf(".authorisation_token_%s", nip)
-	path := filepath.Join(home, ".go-ksef-cli", strings.ToUpper(env))
-	file := filepath.Join(path, fileName)
-	data, err := os.ReadFile(file)
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return "", fmt.Errorf("%w for env %s and identifier %s", ErrAuthTokenNotFound, strings.ToUpper(strings.TrimSpace(env)), nip)
-		}
-		return "", fmt.Errorf("cannot read stored auth token file %s: %w", file, err)
+	path := filepath.Join(home, ".go-ksef-cli", strings.ToUpper(env), authTokenFilePrefix+nip)
+	token, err := ReadEncryptedAuthTokenFile(path, env, nip)
+	if errors.Is(err, os.ErrNotExist) {
+		return "", fmt.Errorf("%w for env %s and identifier %s", ErrAuthTokenNotFound, strings.ToUpper(strings.TrimSpace(env)), nip)
 	}
+	return token, err
+}
 
+// ReadEncryptedAuthTokenFile decrypts a token for the environment and identifier
+// used during generation.
+func ReadEncryptedAuthTokenFile(path, env, nip string) (string, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return "", fmt.Errorf("read encrypted token file: %w", err)
+	}
 	key, err := loadEncryptionKey()
 	if err != nil {
 		return "", err
 	}
-
 	decrypted, err := decryptAESGCM(key, data, buildAAD(env, nip))
-
 	if err != nil {
-		return "", fmt.Errorf("%w (%s): %w", ErrAuthTokenDecrypt, file, err)
+		return "", fmt.Errorf("%w (%s): %w", ErrAuthTokenDecrypt, path, err)
 	}
-
 	return string(decrypted), nil
 }
 

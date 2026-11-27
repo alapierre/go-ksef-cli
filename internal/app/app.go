@@ -86,7 +86,7 @@ func New(token, env, identifier string, opts ...Option) (*App, error) {
 		logger.Info("session persistence enabled")
 	}
 
-	if a.sessionTokens == nil && a.identifier != "" {
+	if a.sessionMode != SessionIsolated && a.sessionTokens == nil && a.identifier != "" {
 		storedTokens, err := TryLoadSessionToken(env, a.identifier)
 		if err != nil {
 			if errors.Is(err, ErrEncryptionKeyNotInitialized) {
@@ -128,6 +128,8 @@ type SessionPersistenceMode uint8
 const (
 	SessionPersistAuto SessionPersistenceMode = iota
 	SessionPersistDisabled
+	// SessionIsolated authenticates independently of the session saved for the NIP.
+	SessionIsolated
 )
 
 func WithTimeout(timeout time.Duration) Option {

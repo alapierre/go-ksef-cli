@@ -2,19 +2,19 @@ module go-ksef-cli
 
 go 1.27
 
-toolchain go1.27.3
+toolchain go1.27.4
 
 require (
-	github.com/alapierre/go-ksef-client v0.9.3
-	github.com/alecthomas/kong v1.16.1
-	github.com/cheggaaa/pb/v3 v3.2.1
-	github.com/jedib0t/go-pretty/v6 v6.8.3
+	github.com/alapierre/go-ksef-client v1.1.0
+	github.com/alecthomas/kong v1.17.0
+	github.com/cheggaaa/pb/v3 v3.3.0
+	github.com/jedib0t/go-pretty/v6 v6.9.3
 	github.com/sirupsen/logrus v1.10.2
 	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e
 	github.com/zalando/go-keyring v0.2.8
-	golang.org/x/crypto v0.58.0
-	golang.org/x/image v0.47.0
-	golang.org/x/term v0.47.0
+	golang.org/x/crypto v0.59.0
+	golang.org/x/image v0.48.0
+	golang.org/x/term v0.48.0
 )
 
 require (
@@ -29,19 +29,20 @@ require (
 	github.com/go-faster/yaml v0.4.6 // indirect
 	github.com/godbus/dbus/v5 v5.2.2 // indirect
 	github.com/google/uuid v1.6.0 // indirect
-	github.com/mattn/go-colorable v0.1.15 // indirect
+	github.com/mattn/go-colorable v0.1.16 // indirect
 	github.com/mattn/go-isatty v0.0.24 // indirect
-	github.com/mattn/go-runewidth v0.0.27 // indirect
-	github.com/ogen-go/ogen v1.24.0 // indirect
+	github.com/mattn/go-runewidth v0.0.31 // indirect
+	github.com/ogen-go/ogen v1.25.0 // indirect
+	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/segmentio/asm v1.2.1 // indirect
 	github.com/shopspring/decimal v1.4.0 // indirect
 	github.com/youmark/pkcs8 v0.0.0-20240726163527-a2c0da244d78 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.28.0 // indirect
 	golang.org/x/exp v0.0.0-20260611194520-c48552f49976 // indirect
-	golang.org/x/net v0.61.0 // indirect
-	golang.org/x/sync v0.24.0 // indirect
-	golang.org/x/sys v0.49.0 // indirect
-	golang.org/x/text v0.43.0 // indirect
+	golang.org/x/net v0.63.0 // indirect
+	golang.org/x/sync v0.25.0 // indirect
+	golang.org/x/sys v0.50.0 // indirect
+	golang.org/x/text v0.44.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 )

@@ -134,7 +134,88 @@ Flags:
 | Flag                 | Environment variable | Required | Description                                   |
 |----------------------|----------------------|----------|-----------------------------------------------|
 | `-i`, `--identifier` |                      | Yes      | Context identifier, usually the taxpayer NIP. |
-| `-t`, `--token`      | `KSEF_TOKEN`         | Yes      | KSeF authorisation token to store.            |
+| `-t`, `--token`      | `KSEF_TOKEN`         | One source | KSeF authorisation token to store. |
+| `--encrypted-token-file` | | One source | Read the token from an encrypted file created by `tokens generate`. |
+
+### `tokens generate` and `tokens status`
+
+Generate a successor using the current session for the NIP, then use its reference
+number to check approval and the exact validity timestamps on KSeF:
+
+```shell
+ksef-cli --env TEST tokens generate -i 1234567890 \
+  --description "Invoice reader rotation" --permission InvoiceRead \
+  --out ./next-reader.token.enc
+
+ksef-cli --env TEST tokens status -i 1234567890 REFERENCE_FROM_GENERATE
+```
+
+Repeat `--permission` to grant multiple permissions. Optional `--valid-from` and
+`--valid-to` accept RFC3339 timestamps with a time zone. Omitted dates use KSeF
+defaults. Both commands use the rev2 endpoints. Supplying `--token` or
+`KSEF_TOKEN` starts an isolated session for that credential.
+
+The encrypted CLI store holds one default authorisation token per environment
+and NIP. By default, `tokens generate` encrypts the output file with the local
+keystore key created by `ksef-cli init`. Reading the encrypted file requires the
+same key, environment and NIP. To write the secret in plaintext, pass
+`--plaintext --out ./next-reader.token`. Both modes require a new
+path and create it with permissions `0600` on Unix. Generation prints the reference
+number and the embedded expiry day when available. The candidate file is separate
+from the default token and the encrypted backups made by `tokens export`.
+
+`tokens status` prints the KSeF response as JSON, including `status.code`,
+`validFrom` and `validTo`. The top-level `status` command shows local storage.
+Check a pending token using the original credential. Use `tokens approve` below
+to approve a token in `AwaitingApproval`. Once the status is `Active`,
+test the encrypted candidate using an isolated login:
+
+```shell
+ksef-cli --env TEST login -i 1234567890 --encrypted-token-file ./next-reader.token.enc --no-store
+```
+
+To make that candidate the default authorisation token, run:
+
+```shell
+ksef-cli --env TEST store -i 1234567890 --encrypted-token-file ./next-reader.token.enc
+```
+
+Both commands decrypt the file in memory. An explicit `--encrypted-token-file`
+takes precedence over `--token` and `KSEF_TOKEN`.
+
+### `tokens approve`
+
+An authorized signer can approve a token in `AwaitingApproval` using a smart
+card. The command authenticates the signer with XAdES in a separate KSeF
+session, approves the token by its reference number and closes that session.
+The existing CLI session and stored authorisation token remain available.
+
+Install the [godss signing tool](https://github.com/alapierre/godss/tree/v0.0.6/cmd/godss)
+on your PATH and install the PKCS#11 driver supplied by your card vendor.
+For a source installation of the helper with Go and a C compiler, run
+`go install github.com/alapierre/godss/cmd/godss@v0.0.6`.
+The helper opens the module and prompts for the card PIN in the terminal.
+For unattended use, the helper reads the PIN from `SIG_PIN`.
+
+```shell
+ksef-cli --env TEST tokens approve -i 1234567890 \
+  --module /opt/proCertumSmartSign/libcryptoCertum3PKCS.so --slot 0 \
+  REFERENCE_FROM_GENERATE
+ksef-cli --env TEST tokens status -i 1234567890 REFERENCE_FROM_GENERATE
+```
+
+Use the library path for your installation. `--slot` is a zero-based index in
+the list of slots with a token present. It defaults to 0. Set
+`KSEF_PKCS11_MODULE` and `KSEF_PKCS11_SLOT` to reuse your settings.
+The godss v0.0.6 card backend uses RSA and selects the first signing objects in
+the chosen slot. After approval, a token with a future start date can still
+have status `NotYetActive`.
+
+For a personal certificate containing a PESEL, pass the company's NIP with
+`-i`. KSeF reads the signer's identity from the certificate. Authentication
+status 415 means the signer lacks permissions in that context. Check the
+signer's permissions for that NIP in the selected environment. The command
+records the authentication failure in `ksef-cli.log` in the working directory.
 
 ### `tokens export`
 
@@ -192,7 +273,7 @@ Flags:
 
 ### `login`
 
-Logs in to KSeF with an authorisation token. If `--token` is omitted, the CLI tries to load the encrypted authorisation token stored with `store`.
+Logs in to KSeF with an authorisation token. If no explicit credential is supplied, the CLI tries to load the encrypted authorisation token stored with `store`.
 
 By default, the received session tokens are stored encrypted on disk.
 
@@ -214,6 +295,7 @@ Flags:
 |-------------------------------|----------------------------|---------------------------------------------------------------------------|
 | `-i`, `--identifier`          |                            | Context identifier, usually the taxpayer NIP.                             |
 | `-t`, `--token`               | `KSEF_TOKEN`               | KSeF authorisation token. If omitted, the stored encrypted token is used. |
+| `--encrypted-token-file`      |                            | Read the token from an encrypted file created by `tokens generate`. |
 | `-p`, `--print-session-token` | `KSEF_PRINT_SESSION_TOKEN` | Print the returned session tokens.                                        |
 | `-r`, `--raw`                 | `KSEF_RAW`                 | Print only raw access token to stdout without formatting.                 |
 | `-n`, `--no-store`            |                            | Do not store returned session tokens.                                     |

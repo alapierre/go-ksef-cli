@@ -13,11 +13,12 @@ import (
 var logger = logrus.WithField("component", "command login")
 
 type Cmd struct {
-	Identifier        string `short:"i" help:"context identifier (NIP)"`
-	Token             string `short:"t" env:"KSEF_TOKEN" optional:"" help:"KSeF authorisation token, if not provided it will be loaded from keystore (it should be stored first)"`
-	PrintSessionToken bool   `short:"p" env:"KSEF_PRINT_SESSION_TOKEN" help:"print session token"`
-	Raw               bool   `short:"r" env:"KSEF_RAW" help:"print only raw access token to stdout without formatting"`
-	NoStore           bool   `short:"n" help:"do not store session token"`
+	EncryptedTokenFile string `type:"existingfile" help:"Authenticate with a keystore-encrypted token file (takes precedence over --token and KSEF_TOKEN)"`
+	Identifier         string `short:"i" help:"context identifier (NIP)"`
+	Token              string `short:"t" env:"KSEF_TOKEN" optional:"" help:"KSeF authorisation token, if not provided it will be loaded from keystore (it should be stored first)"`
+	PrintSessionToken  bool   `short:"p" env:"KSEF_PRINT_SESSION_TOKEN" help:"print session token"`
+	Raw                bool   `short:"r" env:"KSEF_RAW" help:"print only raw access token to stdout without formatting"`
+	NoStore            bool   `short:"n" help:"do not store session token"`
 }
 
 func (c *Cmd) Run(cfg *config.Config) error {
@@ -27,12 +28,20 @@ func (c *Cmd) Run(cfg *config.Config) error {
 		fmt.Printf("Trying to login into KSeF, identifier: %s, env: %s\n", c.Identifier, cfg.Env)
 	}
 
-	token, err := app.ResolveAuthToken(c.Token, cfg.Env, c.Identifier)
+	mode := app.SessionPersistDisabled
+	var token string
+	var err error
+	if c.EncryptedTokenFile != "" {
+		mode = app.SessionIsolated
+		token, err = app.ReadEncryptedAuthTokenFile(c.EncryptedTokenFile, cfg.Env, c.Identifier)
+	} else {
+		token, err = app.ResolveAuthToken(c.Token, cfg.Env, c.Identifier)
+	}
 	if err != nil {
 		return err
 	}
 
-	appContext, err := app.New(token, cfg.Env, c.Identifier, app.WithSessionPersistence(app.SessionPersistDisabled))
+	appContext, err := app.New(token, cfg.Env, c.Identifier, app.WithSessionPersistence(mode))
 	if err != nil {
 		return err
 	}
