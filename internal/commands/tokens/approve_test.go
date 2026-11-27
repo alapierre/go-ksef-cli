@@ -12,6 +12,8 @@ import (
 
 	"go-ksef-cli/internal/apperrors"
 	"go-ksef-cli/internal/config"
+
+	"github.com/alecthomas/kong"
 )
 
 type approvalTransport func(*http.Request) (*http.Response, error)
@@ -19,14 +21,18 @@ type approvalTransport func(*http.Request) (*http.Response, error)
 func (f approvalTransport) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
 
 func TestApproveWithSignedSession(t *testing.T) {
-	testApproveWithSignedSession(t, `{"code":200,"description":"success"}`, false)
+	for _, command := range []string{"approve card", "approve", "approve cert"} {
+		t.Run(command, func(t *testing.T) {
+			testApproveWithSignedSession(t, command, `{"code":200,"description":"success"}`, false)
+		})
+	}
 }
 
 func TestApproveDisplaysHintForAuthentication415(t *testing.T) {
-	testApproveWithSignedSession(t, `{"code":415,"description":"Uwierzytelnianie zakończone niepowodzeniem"}`, true)
+	testApproveWithSignedSession(t, "approve", `{"code":415,"description":"Uwierzytelnianie zakończone niepowodzeniem"}`, true)
 }
 
-func testApproveWithSignedSession(t *testing.T, authStatus string, wantFailure bool) {
+func testApproveWithSignedSession(t *testing.T, command, authStatus string, wantFailure bool) {
 	t.Helper()
 	if runtime.GOOS == "windows" {
 		t.Skip("test signer uses a POSIX shell")
@@ -34,10 +40,35 @@ func testApproveWithSignedSession(t *testing.T, authStatus string, wantFailure b
 	dir := t.TempDir()
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
 	t.Setenv("KSEF_TOKEN", "unrelated-default-token")
-	t.Setenv("TEST_PKCS11_MODULE", filepath.Join(dir, "driver with spaces.so"))
+	const ref = "20261106-EC-22ACCDF000-5CDA6D5392-B0"
+	args := append(strings.Fields(command), "-i", "1111111111", ref)
+	t.Setenv("SIG_PIN", "card-pin")
+	t.Setenv("EXPECTED_BACKEND", "card")
+	if command == "approve cert" {
+		t.Setenv("EXPECTED_BACKEND", "keystore")
+		t.Setenv("KSEF_KEY_PASSWORD", " key password with spaces ")
+		cert := filepath.Join(dir, "auth cert.crt")
+		key := filepath.Join(dir, "auth private.key")
+		for _, path := range []string{cert, key} {
+			if err := os.WriteFile(path, nil, 0600); err != nil {
+				t.Fatal(err)
+			}
+		}
+		args = append(args, "--cert", cert, "--key", key)
+	} else {
+		module := filepath.Join(dir, "driver with spaces.so")
+		if err := os.WriteFile(module, nil, 0600); err != nil {
+			t.Fatal(err)
+		}
+		args = append(args, "--module", module, "--slot", "2")
+	}
 	const script = `#!/bin/sh
 set -eu
-[ "$1" = card ] && [ "$2" = -d ] && [ "$3" = "$TEST_PKCS11_MODULE" ] && [ "$4" = -s ] && [ "$5" = 2 ] || exit 42
+[ "$#" = 6 ] && [ "$1" = "$EXPECTED_BACKEND" ] || exit 42
+case "$1" in
+  card) [ "$2" = -d ] && [ "${3##*/}" = "driver with spaces.so" ] && [ "$4" = -s ] && [ "$5" = 2 ] && [ "$SIG_PIN" = card-pin ] || exit 43 ;;
+  keystore) [ "$2" = -c ] && [ "${3##*/}" = "auth cert.crt" ] && [ "$4" = -k ] && [ "${5##*/}" = "auth private.key" ] && [ "$SIG_PIN" = " key password with spaces " ] || exit 44 ;;
+esac
 grep -q '<Nip>1111111111</Nip>' "$6"
 grep -q '20250514-CR-226FB7B000-3ACF9BE4C0-10' "$6"
 printf '<signed-request/>' > "${6%.xml}.signed.xml"
@@ -46,7 +77,6 @@ printf '<signed-request/>' > "${6%.xml}.signed.xml"
 		t.Fatal(err)
 	}
 
-	const ref = "20261106-EC-22ACCDF000-5CDA6D5392-B0"
 	const authRef = "20250625-SO-2C3E6C8000-B675CF5D68-07"
 	steps := []struct {
 		method, path, bearer string
@@ -83,8 +113,18 @@ printf '<signed-request/>' > "${6%.xml}.signed.xml"
 		}
 		return &http.Response{StatusCode: s.status, Header: http.Header{"Content-Type": {"application/json"}}, Body: io.NopCloser(strings.NewReader(s.body))}, nil
 	})
-	cmd := ApproveCmd{Identifier: "1111111111", Module: os.Getenv("TEST_PKCS11_MODULE"), Slot: 2, Reference: ref}
-	err := cmd.Run(&config.Config{Env: "TEST"})
+	parser, err := kong.New(&Cmd{}, kong.Bind(&config.Config{Env: "TEST"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	commandCtx, err := parser.Parse(args)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = commandCtx.Run()
+	if os.Getenv("SIG_PIN") != "card-pin" {
+		t.Fatal("command changed the parent process PIN")
+	}
 	if wantFailure {
 		if err == nil {
 			t.Fatal("expected approver authentication to fail")
@@ -124,7 +164,7 @@ func TestSigningFailureStopsApproval(t *testing.T) {
 		const challenge = `{"challenge":"20250514-CR-226FB7B000-3ACF9BE4C0-10","timestamp":"2026-07-01T12:00:00Z","timestampMs":1782907200000,"clientIp":"127.0.0.1"}`
 		return &http.Response{StatusCode: http.StatusOK, Header: http.Header{"Content-Type": {"application/json"}}, Body: io.NopCloser(strings.NewReader(challenge))}, nil
 	})
-	cmd := ApproveCmd{Identifier: "1111111111", Reference: "20261106-EC-22ACCDF000-5CDA6D5392-B0"}
+	cmd := CardApproveCmd{ApprovalTarget: ApprovalTarget{Identifier: "1111111111", Reference: "20261106-EC-22ACCDF000-5CDA6D5392-B0"}}
 	if err := cmd.Run(&config.Config{Env: "TEST"}); err == nil || !strings.Contains(err.Error(), "godss card signing failed") {
 		t.Fatalf("signing error = %v", err)
 	}

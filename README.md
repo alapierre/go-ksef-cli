@@ -166,8 +166,8 @@ from the default token and the encrypted backups made by `tokens export`.
 
 `tokens status` prints the KSeF response as JSON, including `status.code`,
 `validFrom` and `validTo`. The top-level `status` command shows local storage.
-Check a pending token using the original credential. Use `tokens approve` below
-to approve a token in `AwaitingApproval`. Once the status is `Active`,
+Check a pending token using the original credential. Use `tokens approve cert`
+or `tokens approve card` for a token in `AwaitingApproval`. Once the status is `Active`,
 test the encrypted candidate using an isolated login:
 
 ```shell
@@ -183,22 +183,34 @@ ksef-cli --env TEST store -i 1234567890 --encrypted-token-file ./next-reader.tok
 Both commands decrypt the file in memory. An explicit `--encrypted-token-file`
 takes precedence over `--token` and `KSEF_TOKEN`.
 
-### `tokens approve`
+### Approving a token with XAdES
 
-An authorized signer can approve a token in `AwaitingApproval` using a smart
-card. The command authenticates the signer with XAdES in a separate KSeF
-session, approves the token by its reference number and closes that session.
-The existing CLI session and stored authorisation token remain available.
-
-Install the [godss signing tool](https://github.com/alapierre/godss/tree/v0.0.6/cmd/godss)
-on your PATH and install the PKCS#11 driver supplied by your card vendor.
-For a source installation of the helper with Go and a C compiler, run
+Both approval commands authenticate the signer in a separate KSeF session,
+approve the token by reference number, and close that session. Install
+[godss](https://github.com/alapierre/godss/tree/v0.0.6/cmd/godss) on your PATH.
+To build the helper from source with Go and a C compiler, run
 `go install github.com/alapierre/godss/cmd/godss@v0.0.6`.
+
+#### `tokens approve cert`
+
+Use a KSeF certificate of type `Authentication` in PEM format and its matching
+encrypted PKCS#8 PEM private key. The CLI prompts for the key password in the
+terminal. For unattended use, set `KSEF_KEY_PASSWORD`.
+
+```shell
+ksef-cli --env TEST tokens approve cert -i 1234567890 \
+  --cert ./authentication.crt --key ./authentication.key REFERENCE_FROM_GENERATE
+```
+
+#### `tokens approve card`
+
+Existing scripts can omit `card` and keep using `tokens approve` with their PKCS#11 options.
+Install the PKCS#11 driver supplied by your card vendor.
 The helper opens the module and prompts for the card PIN in the terminal.
 For unattended use, the helper reads the PIN from `SIG_PIN`.
 
 ```shell
-ksef-cli --env TEST tokens approve -i 1234567890 \
+ksef-cli --env TEST tokens approve card -i 1234567890 \
   --module /opt/proCertumSmartSign/libcryptoCertum3PKCS.so --slot 0 \
   REFERENCE_FROM_GENERATE
 ksef-cli --env TEST tokens status -i 1234567890 REFERENCE_FROM_GENERATE

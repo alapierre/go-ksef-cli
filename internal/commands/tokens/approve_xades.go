@@ -6,7 +6,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
 
@@ -15,12 +14,10 @@ import (
 	"github.com/alapierre/go-ksef-client/ksef/tpl"
 )
 
-// godss loads the vendor module in a separate process so the distributed
-// CGO-free binaries can use the same PKCS#11 flow on every platform.
-func (c *ApproveCmd) authenticate(ctx context.Context, auth *ksef.AuthFacade) (*api.AuthenticationTokensResponse, error) {
+func (c *ApprovalTarget) authenticate(ctx context.Context, auth *ksef.AuthFacade, signerArgs []string, password string) (*api.AuthenticationTokensResponse, error) {
 	helper, err := exec.LookPath("godss")
 	if err != nil {
-		return nil, fmt.Errorf("PKCS#11 signing requires godss on PATH: %w", err)
+		return nil, fmt.Errorf("XAdES signing requires godss on PATH: %w", err)
 	}
 	challenge, err := auth.GetChallenge(ctx)
 	if err != nil {
@@ -33,7 +30,7 @@ func (c *ApproveCmd) authenticate(ctx context.Context, auth *ksef.AuthFacade) (*
 	if err != nil {
 		return nil, err
 	}
-	signed, err := c.signWithCard(ctx, helper, request)
+	signed, err := signWithGodss(ctx, helper, signerArgs, password, request)
 	if err != nil {
 		return nil, err
 	}
@@ -56,7 +53,7 @@ func (c *ApproveCmd) authenticate(ctx context.Context, auth *ksef.AuthFacade) (*
 	return tokens, nil
 }
 
-func (c *ApproveCmd) signWithCard(ctx context.Context, helper string, request []byte) ([]byte, error) {
+func signWithGodss(ctx context.Context, helper string, signerArgs []string, password string, request []byte) ([]byte, error) {
 	dir, err := os.MkdirTemp("", "ksef-xades-*")
 	if err != nil {
 		return nil, err
@@ -66,12 +63,15 @@ func (c *ApproveCmd) signWithCard(ctx context.Context, helper string, request []
 	if err := os.WriteFile(input, request, 0600); err != nil {
 		return nil, err
 	}
-	cmd := exec.CommandContext(ctx, helper, "card", "-d", c.Module, "-s", strconv.Itoa(c.Slot), input)
+	cmd := exec.CommandContext(ctx, helper, append(signerArgs, input)...)
+	if password != "" {
+		cmd.Env = append(cmd.Environ(), "SIG_PIN="+password)
+	}
 	cmd.Stdin = os.Stdin
 	cmd.Stderr = os.Stderr
 	cmd.Stdout = os.Stderr
 	if err := cmd.Run(); err != nil {
-		return nil, fmt.Errorf("godss card signing failed: %w", err)
+		return nil, fmt.Errorf("godss %s signing failed: %w", signerArgs[0], err)
 	}
 	return os.ReadFile(filepath.Join(dir, "auth.signed.xml"))
 }
